@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RoleSelector } from "@/components/role-selector";
 
 export default function Page() {
   return (
@@ -20,10 +21,10 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                You&apos;ve successfully signed up. Please check your email to
-                confirm your account before signing in.
+                Which of the following describes you best:
               </p>
             </CardContent>
+            <RoleSelector></RoleSelector>
           </Card>
         </div>
       </div>
