@@ -33,8 +33,16 @@ export function LoginForm({
     setError(null);
 
     try {
+      // Normalize email: trim, lowercase, and append default domain if user
+      // only provided the local part (e.g. "alice" -> "alice@pillr.support").
+      const normalizedEmail = (() => {
+        const trimmed = email.trim().toLowerCase();
+        if (trimmed === "") return trimmed;
+        return trimmed.includes("@") ? trimmed : `${trimmed}@pillr.support`;
+      })();
+
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
       if (error) throw error;
@@ -60,11 +68,11 @@ export function LoginForm({
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Username</Label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="m@example.com"
+                  type="text"
+                  placeholder="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
