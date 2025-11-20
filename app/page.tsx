@@ -16,6 +16,7 @@ export default function Home() {
               
             </div>
             {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
+            <Link href={"/dashboard"}>Dashboard</Link>
           </div>
         </nav>
         <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">

@@ -1,0 +1,87 @@
+import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+import { InfoIcon } from "lucide-react";
+import DeviceLog from '@/components/device-log';
+
+export default async function ProtectedPage() {
+  const supabase = await createClient();
+
+  // get authenticated user
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userData?.user;
+
+  if (userError || !user) {
+    // not authenticated — redirect to login
+    redirect("/auth/login");
+  }
+
+  const userId = user.id;
+
+  // fetch profile row
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const { data: device, error: deviceError } = await supabase
+    .from('user_device')
+    .select("*")
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  // fetch recent device_log rows for this user's device (if any)
+  let deviceLog: any[] = [];
+  if (device?.device_id) {
+    const { data: logData, error: logError } = await supabase
+      .from('device_log')
+      .select('*')
+      .eq('device_id', device.device_id)
+      .order('time_stamp', { ascending: false })
+      .limit(50);
+
+    if (logError) {
+      console.error('Failed to load device_log:', logError);
+    } else if (logData) {
+      deviceLog = logData;
+    }
+  }
+
+  if (profileError) {
+    // handle or surface the error — here we redirect or you could render an error UI
+    console.error("Failed to load profile:", profileError);
+    // Optionally redirect, show an error, or return a server error page
+    redirect("/auth/login");
+  }
+  return (
+    <div className="flex-1 w-full flex flex-col gap-12">
+      <div className="w-full">
+        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex-down gap-3 items-center">
+          <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
+          <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 items-start">
+        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
+        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
+          <h2 className="font-bold text-2xl">{device?.device_id ?? "No device"}</h2>
+          <h4 className="font-semibold text-2xs mb-2">{device?.is_active ? "Active": "Not active"}</h4>
+
+         
+        </pre>
+      </div>
+      <div className="flex flex-col gap-2 items-start">
+        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
+        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
+          {JSON.stringify(profile, null, 2)}
+        </pre>
+      </div>
+      <div>
+  <DeviceLog deviceLog={deviceLog} />
+      </div>
+      <div>
+      </div>
+    </div>
+  );
+}
