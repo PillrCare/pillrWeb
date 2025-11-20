@@ -32,16 +32,4 @@
 
         redirect(`/dashboard/${profile.user_type}`)
         
-        // // Perform some logic
-        // const shouldRedirect = true; // Example condition
-
-        // if (shouldRedirect) {
-        //     redirect('/dashboard/patient'); // Redirects on the server
-        // }
-
-        // return (
-        //     <div>
-        //     didnt work
-        //     </div>
-        // );
     }

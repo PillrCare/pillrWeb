@@ -2,9 +2,6 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-import DeviceLog from '@/components/dashboard/device-log';
-import UserStats from "@/components/dashboard/user-stats";
-
 import type { DeviceLogRow } from '@/lib/types';
 
 export default async function DashboardPatient() {
@@ -28,10 +25,9 @@ export default async function DashboardPatient() {
     .eq("id", userId)
     .maybeSingle();
 
-  if (profile.user_type !== 'patient') {
+  if (profile.user_type !== 'caregiver') {
     redirect(`/dashboard/${profile.user_type}`)
   }
-
 
   const { data: device, error: deviceError } = await supabase
     .from('user_device')
@@ -77,16 +73,6 @@ export default async function DashboardPatient() {
           <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
         </div>
       </div>
-
-      <div>
-        <UserStats deviceLog={deviceLog} />
-      </div>
-
-      <div>
-        <DeviceLog deviceLog={deviceLog} />
-      </div>
-
-      
 
       <div className="flex flex-col gap-2 items-start">
         <h2 className="font-bold text-2xl mb-4">Your user details</h2>

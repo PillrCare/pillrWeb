@@ -15,8 +15,10 @@ export default function Home() {
               <Link href={"/"}>Pillr.</Link>
               
             </div>
-            {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
-            <Link href={"/dashboard"}>Dashboard</Link>
+            <div className="flex gap-5 items-center">
+              <Link href={"/dashboard"} className="font-semibold">Dashboard</Link>
+              {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
+            </div>
           </div>
         </nav>
         <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">

@@ -33,20 +33,21 @@ export default function DeviceLog({ deviceLog }: { deviceLog: DeviceLogRow[] }) 
           {deviceLog.map((row) => (
 
             <div key={row.id} className="border-t flex items-start p-2">
-
-              <div className="flex-1">
-
+              
+              <div className="flex-1 w-full">
                 <div className="text-sm font-medium">
                   {row.search_event ? "Search" : row.enroll_event ? "Enroll" : row.e_unlock ? "E-Unlock" : row.clear_event ? "Clear" : "Other"}
                 </div>
+                
 
-                <div className="text-xs font-mono whitespace-pre-wrap text-muted-foreground mt-1">
+                <div className="text-xs font-mono whitespace-pre-wrap text-muted-foreground mt-1 pl-4">
                   {`searched_id: ${row.searched_id ?? "-"}\nsearch_success: ${row.search_success ?? "-"}\nenroll_id: ${row.enroll_id ?? "-"}\nenroll_success: ${row.enroll_success ?? "-"}`}
                 </div>
 
               </div>
 
-              <div className="w-20 text-right text-xs">{row.weight ?? "-"}</div>
+              <div className="w-20 text-center text-xs">{row.weight ?? "-"}</div>
+              
               <div className="w-32 text-xs text-muted-foreground">{new Date(row.time_stamp).toISOString()}</div>
 
             </div>
