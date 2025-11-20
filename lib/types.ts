@@ -1,0 +1,20 @@
+export type DeviceLogRow = {
+  id: number;
+  device_id: string;
+  time_stamp: string;
+  total_print_ids?: number | null;
+  search_event?: boolean | null;
+  search_success?: boolean | null;
+  searched_id?: number | null;
+  total_searches?: number | null;
+  enroll_event?: boolean | null;
+  enroll_success?: boolean | null;
+  enroll_id?: number | null;
+  total_enrolls?: number | null;
+  e_unlock?: boolean | null;
+  total_e_unlocks?: number | null;
+  clear_event?: boolean | null;
+  total_opens?: number | null;
+  time_since_last_open?: number | null;
+  weight?: number | null;
+};

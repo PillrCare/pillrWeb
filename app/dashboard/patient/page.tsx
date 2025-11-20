@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import DeviceLog from '@/components/device-log';
-import type { DeviceLogRow } from '@/components/device-log';
+
+import DeviceLog from '@/components/dashboard/device-log';
+import UserStats from "@/components/dashboard/user-stats";
+
+import type { DeviceLogRow } from '@/lib/types';
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -83,9 +86,10 @@ export default async function ProtectedPage() {
         </pre>
       </div>
       <div>
-  <DeviceLog deviceLog={deviceLog} />
+        <DeviceLog deviceLog={deviceLog} />
       </div>
       <div>
+        <UserStats deviceLog={deviceLog} />
       </div>
     </div>
   );
