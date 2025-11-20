@@ -52,7 +52,7 @@ export function SignUpForm({
         email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
       });
       if (error) throw error;
