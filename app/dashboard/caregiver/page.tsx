@@ -28,41 +28,12 @@ export default async function DashboardPatient() {
   if (profile.user_type !== 'caregiver') {
     redirect(`/dashboard/${profile.user_type}`)
   }
-
-  const { data: device, error: deviceError } = await supabase
-    .from('user_device')
-    .select("*")
-    .eq('user_id', userId)
-    .maybeSingle();
   
   if (profileError) {
     // handle or surface the error — here we redirect or you could render an error UI
     console.error("Failed to load profile:", profileError);
     // Optionally redirect, show an error, or return a server error page
     redirect("/auth/login");
-  }
-
-  // fetch recent device_log rows for this user's device (if any)
-  let deviceLog: DeviceLogRow[] = [];
-  if (device?.device_id) {
-    const { data: logData, error: logError } = await supabase
-      .from('device_log')
-      .select('*')
-      .eq('device_id', device.device_id)
-      .order('time_stamp', { ascending: false })
-      .limit(50);
-
-    if (logError) {
-      console.error('Failed to load device_log:', logError);
-    } else if (logData) {
-      deviceLog = logData;
-    }
-  }
-
-  
-  if (deviceError) {
-    // handle or surface the error — here we redirect or you could render an error UI
-    console.error("Failed to load device:", deviceError);
   }
 
   return (
@@ -76,10 +47,6 @@ export default async function DashboardPatient() {
 
       <div className="flex flex-col gap-2 items-start">
         <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          <h2 className="font-bold text-2xl">{device?.device_id ?? "No device"}</h2>
-          <h4 className="font-semibold text-2xs mb-2">{device?.is_active ? "Active": "Not active"}</h4>
-        </pre>
 
         <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
           {JSON.stringify(profile, null, 2)}
