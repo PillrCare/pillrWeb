@@ -7,7 +7,7 @@ import UserStats from "@/components/dashboard/user-stats";
 
 import type { DeviceLogRow } from '@/lib/types';
 
-export default async function ProtectedPage() {
+export default async function DashboardPatient() {
   const supabase = await createClient();
 
   // get authenticated user
@@ -33,6 +33,13 @@ export default async function ProtectedPage() {
     .select("*")
     .eq('user_id', userId)
     .maybeSingle();
+  
+  if (profileError) {
+    // handle or surface the error — here we redirect or you could render an error UI
+    console.error("Failed to load profile:", profileError);
+    // Optionally redirect, show an error, or return a server error page
+    redirect("/auth/login");
+  }
 
   // fetch recent device_log rows for this user's device (if any)
   let deviceLog: DeviceLogRow[] = [];
@@ -51,12 +58,7 @@ export default async function ProtectedPage() {
     }
   }
 
-  if (profileError) {
-    // handle or surface the error — here we redirect or you could render an error UI
-    console.error("Failed to load profile:", profileError);
-    // Optionally redirect, show an error, or return a server error page
-    redirect("/auth/login");
-  }
+  
   if (deviceError) {
     // handle or surface the error — here we redirect or you could render an error UI
     console.error("Failed to load device:", deviceError);
