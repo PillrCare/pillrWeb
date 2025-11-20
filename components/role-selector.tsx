@@ -28,7 +28,7 @@ interface Option {
 
 export function RoleSelector({ className }: { className?: string }) {
     const [role, setRole] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
@@ -36,10 +36,10 @@ export function RoleSelector({ className }: { className?: string }) {
         e.preventDefault();
         const supabase = createClient();
         setIsLoading(true);
-        setError(null);
+        setErrorMessage(null);
             try {
                 if (!role) {
-                    setError("Please select a role");
+                    setErrorMessage("Please select a role");
                     return;
                 }
 
@@ -56,18 +56,17 @@ export function RoleSelector({ className }: { className?: string }) {
                 const emailLocalPart = user.email ? user.email.split('@')[0] : null;
                 const username = emailLocalPart ?? user.id;
 
-                const { data, error } = await supabase
+                const { error: updateError } = await supabase
                     .from('profiles')
                     .update({ user_type: role, username })
                     .eq('id', user.id)
                     .select();
-          
 
-                if (error) throw error;
+                if (updateError) throw updateError;
 
                 router.push("/");
             } catch (error: unknown) {
-                setError(error instanceof Error ? error.message : "An error occurred");
+                setErrorMessage(error instanceof Error ? error.message : "An error occurred");
             } finally {
                 setIsLoading(false);
             }
@@ -97,6 +96,7 @@ export function RoleSelector({ className }: { className?: string }) {
             <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Finishing account..." : "Finish account"}
             </Button>
+            {errorMessage ? <p className="text-sm text-red-600 mt-2">{errorMessage}</p> : null}
         </form>
         
     );

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { InfoIcon } from "lucide-react";
 import DeviceLog from '@/components/device-log';
+import type { DeviceLogRow } from '@/components/device-log';
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -32,7 +32,7 @@ export default async function ProtectedPage() {
     .maybeSingle();
 
   // fetch recent device_log rows for this user's device (if any)
-  let deviceLog: any[] = [];
+  let deviceLog: DeviceLogRow[] = [];
   if (device?.device_id) {
     const { data: logData, error: logError } = await supabase
       .from('device_log')
@@ -54,6 +54,11 @@ export default async function ProtectedPage() {
     // Optionally redirect, show an error, or return a server error page
     redirect("/auth/login");
   }
+  if (deviceError) {
+    // handle or surface the error — here we redirect or you could render an error UI
+    console.error("Failed to load device:", deviceError);
+  }
+
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
       <div className="w-full">
