@@ -1,0 +1,189 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+type EventItem = {
+  day_of_week: number;
+  dose_time: string;
+  description?: string | null;
+};
+
+const DAYS = [
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+  { value: 7, label: "Sunday" },
+];
+
+export default function ScheduleEditor({ which_user }: { which_user?: string }) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [addingDay, setAddingDay] = useState<number | null>(null);
+  const [newTime, setNewTime] = useState("");
+  const [newDesc, setNewDesc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  // `userId` is the target user whose schedule we're editing (could be the same).
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const user = userData?.user;
+
+      if (userError || !user) {
+        router.push("/dashboard");
+        return;
+      }
+
+      if (!mounted) return;
+
+      const targetId = which_user ?? user.id;
+      setUserId(targetId);
+
+      const { data: rows, error } = await supabase
+        .from("weekly_events")
+        .select("day_of_week, dose_time, description")
+        .eq("user_id", targetId)
+        .order("day_of_week", { ascending: true })
+        .order("dose_time", { ascending: true });
+
+      if (!error && rows) {
+        const mapped = rows.map((r: unknown) => {
+          const row = r as {
+            day_of_week: number;
+            dose_time: string | number | null;
+            description?: string | null;
+          };
+          return {
+            day_of_week: row.day_of_week,
+            dose_time: typeof row.dose_time === "string" ? row.dose_time : String(row.dose_time),
+            description: row.description ?? null,
+          };
+        });
+        setEvents(mapped);
+      }
+
+      setLoading(false);
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+    // supabase is stable (created with useMemo) so it's safe to include in deps
+  }, [router, which_user, supabase]);
+
+  function startAdd(day: number) {
+    setAddingDay(day);
+    setNewTime("");
+    setNewDesc(null);
+  }
+
+  function confirmAdd() {
+    if (addingDay === null || !newTime) return;
+    setEvents((s) => [...s, { day_of_week: addingDay!, dose_time: newTime, description: newDesc }]);
+    setAddingDay(null);
+    setNewTime("");
+    setNewDesc(null);
+  }
+
+  function removeEvent(index: number) {
+    setEvents((s) => s.filter((_, i) => i !== index));
+  }
+
+  async function saveAndContinue() {
+    if (!userId) return;
+    setSaving(true);
+
+    try {
+      const { error: delError } = await supabase.from("weekly_events").delete().eq("user_id", userId);
+      if (delError) console.error("delete error", delError);
+
+      const payload = events.map((e) => ({
+        user_id: userId,
+        day_of_week: e.day_of_week,
+        dose_time: e.dose_time,
+        description: e.description,
+      }));
+
+      if (payload.length > 0) {
+        const { error: insertError } = await supabase.from("weekly_events").insert(payload);
+        if (insertError) console.error("insert error", insertError);
+      }
+
+      console.log("saved events", payload);
+    } finally {
+      setSaving(false);
+    }
+    router.push("/dashboard");
+
+  }
+
+  if (loading) {
+    return <div>Loading…</div>;
+  }
+
+  return (
+    <div className="flex-1 w-full flex flex-col gap-12">
+      <h1 className="text-xl font-semibold">Set your medication schedule</h1>
+
+      <div className="text-xs font-mono p-3 bg-accent rounded border">
+        {DAYS.map((d) => (
+          <div key={d.value} className="text-sm m-3 p-3 px-5 rounded-md text-foreground bg-background flex-down gap-3 items-center">
+            <div>
+              <strong>{d.label}</strong>
+              <button className="m-2 p-2 bg-accent rounded border" onClick={() => startAdd(d.value)}>+ Add</button>
+            </div>
+
+            <div className="p-2 bg-accent rounded border">
+              {events.filter((ev) => ev.day_of_week === d.value).length === 0 && <div>No events for {d.label}.</div>}
+
+              {events.map((ev, idx) => ev.day_of_week === d.value && (
+                <div className="p-2 mb-2 bg-background rounded border" key={`${d.value}-${idx}`}>
+                  <div className="m-1">{ev.dose_time}</div>
+                  <div className="m-1">{ev.description ?? "No description"}</div>
+                  <button className="p-2 m-1 bg-destructive rounded border" onClick={() => removeEvent(idx)}>Remove</button>
+                </div>
+              ))}
+
+              {addingDay === d.value && (
+                <div className="p-2 bg-background rounded border">
+                  <div className="text-lg w-full p-2">
+                    <label className="pr-2">Time</label>
+                    <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
+                  </div>
+                  <div className="w-full">
+                    <label>Description (optional)</label>
+                    <input className="w-full p-2 mt-2" value={newDesc ?? ""} onChange={(e) => setNewDesc(e.target.value)} placeholder="e.g., With food, morning" />
+                  </div>
+                  <div>
+                    <button className="m-1 p-1 bg-accent rounded border" onClick={confirmAdd}>Add</button>
+                    <button className="m-1 p-1 bg-destructive rounded border" onClick={() => setAddingDay(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full flex justify-left">
+        <button className="p-2 bg-accent border rounded" onClick={saveAndContinue} disabled={saving}>{saving ? "Saving…" : "Save and Continue"}</button>
+        <button className="p-2 ml-2 bg-destructive border rounded" onClick={() => router.push("/dashboard")}>Skip for now</button>
+      </div>
+    </div>
+  );
+}
+
