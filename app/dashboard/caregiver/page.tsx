@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-import type { DeviceLogRow } from '@/lib/types';
+import PatientView from "@/components/dashboard/patient-view";
 
 export default async function DashboardPatient() {
   const supabase = await createClient();
@@ -47,11 +47,12 @@ export default async function DashboardPatient() {
 
       <div className="flex flex-col gap-2 items-start">
         <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-
         <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
           {JSON.stringify(profile, null, 2)}
         </pre>
       </div>
+
+      <PatientView/>
       
     </div>
   );
