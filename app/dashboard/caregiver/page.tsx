@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 import PatientView from "@/components/dashboard/patient-view";
+import ConnectPatient from "@/components/connect_patient";  
 
 export default async function DashboardPatient() {
   const supabase = await createClient();
@@ -53,6 +54,7 @@ export default async function DashboardPatient() {
       </div>
 
       <PatientView/>
+      <ConnectPatient/>
       
     </div>
   );

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import DeviceLog from '@/components/dashboard/device-log';
 import UserStats from "@/components/dashboard/user-stats";
+import GenerateCode from "@/components/generate_code";
 
 import type { DeviceLogRow } from '@/lib/types';
 
@@ -84,6 +85,10 @@ export default async function DashboardPatient() {
 
       <div>
         <DeviceLog deviceLog={deviceLog} />
+      </div>
+
+      <div>
+        <GenerateCode/>
       </div>
 
       
