@@ -63,8 +63,15 @@ export function RoleSelector({ className }: { className?: string }) {
                     .select();
 
                 if (updateError) throw updateError;
-
-                router.push("/");
+                
+                // Route users based on selected role
+                if (role === "patient") {
+                    router.push("/auth/profile-setup");
+                } else if (role === "caregiver") {
+                    router.push("/dashboard");
+                } else {
+                    router.push("/");
+                }
             } catch (error: unknown) {
                 setErrorMessage(error instanceof Error ? error.message : "An error occurred");
             } finally {
