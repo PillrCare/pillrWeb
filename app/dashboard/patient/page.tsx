@@ -5,8 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import DeviceLog from '@/components/dashboard/device-log';
 import UserStats from "@/components/dashboard/user-stats";
 import GenerateCode from "@/components/generate_code";
+import EnrollButton from "@/components/enroll-button";
+import Schedule from "@/components/dashboard/schedule";
 
-import type { DeviceLogRow } from '@/lib/types';
+
+import type { DeviceLogRow, ScheduleEvent } from '@/lib/types';
+import TodaysSchedule from "@/components/dashboard/todays-schedule";
 
 export default async function DashboardPatient() {
   const supabase = await createClient();
@@ -63,6 +67,27 @@ export default async function DashboardPatient() {
       deviceLog = logData;
     }
   }
+  let schedule: ScheduleEvent[] = [];
+  if (device?.device_id) {
+    const { data: scheduleData, error: scheduleError } = await supabase
+      .from('weekly_events')
+      .select('*')
+      .eq('user_id', userId)
+      .order('dose_time', { ascending: true })
+
+    if (scheduleError) {
+      console.error('Failed to load device_log:', scheduleError);
+    } else if (scheduleData) {
+      schedule = scheduleData;
+    }
+  }
+
+  // Filter device logs for today only
+  const todaysLogs = deviceLog.filter(log => {
+    const logDate = new Date(log.time_stamp);
+    const today = new Date();
+    return logDate.toDateString() === today.toDateString();
+  });
 
   
   if (deviceError) {
@@ -84,6 +109,14 @@ export default async function DashboardPatient() {
       </div>
 
       <div>
+        <TodaysSchedule schedule={schedule} deviceLog={todaysLogs} />
+      </div>
+
+      <div>
+        <Schedule schedule={schedule} />
+      </div>
+
+      <div>
         <DeviceLog deviceLog={deviceLog} />
       </div>
 
@@ -94,15 +127,16 @@ export default async function DashboardPatient() {
       
 
       <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
+        <h2 className="font-bold text-2xl mb-4">Your device:</h2>
         <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
           <h2 className="font-bold text-2xl">{device?.device_id ?? "No device"}</h2>
           <h4 className="font-semibold text-2xs mb-2">{device?.is_active ? "Active": "Not active"}</h4>
         </pre>
 
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
+        {/* <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
           {JSON.stringify(profile, null, 2)}
-        </pre>
+        </pre> */}
+        <EnrollButton userId={user.id}/>
       </div>
       
     </div>
