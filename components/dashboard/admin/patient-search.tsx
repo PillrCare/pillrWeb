@@ -24,7 +24,7 @@ type Props = {
   onSelectUser?: (userId: string) => void;
 };
 
-export function PatientSearch({ profiles, agencyId, caregivers = [], caregiver_patient = [], onSelectUser }: Props) {
+export function PatientSearch({ profiles, agencyId, onSelectUser }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   type RoleFilter = "all" | "patient" | "caregiver" | "admin" | null;
   const [roleFilter, setRoleFilter] = useState<RoleFilter>(null);
@@ -34,20 +34,10 @@ export function PatientSearch({ profiles, agencyId, caregivers = [], caregiver_p
     return profiles.filter((p) => (agencyId ? p.agency_id === agencyId : true));
   }, [profiles, agencyId]);
 
-  // Enrich patients with caregiver name for searching by caregiver
-  const withCaregiver = useMemo(() => {
-    return inAgency.map((p) => {
-      if (p.user_type !== "patient") return p as Profile & { caregiver_name?: string };
-      const link = caregiver_patient.find((cp) => cp.patient_id === p.id);
-      const cg = link ? caregivers.find((c) => c.id === link.caregiver_id) : null;
-      return { ...p, caregiver_name: cg?.username ?? undefined } as Profile & { caregiver_name?: string };
-    });
-  }, [inAgency, caregivers, caregiver_patient]);
-
   const filteredByRole = useMemo(() => {
-    if (roleFilter === null) return [] as (Profile & { caregiver_name?: string })[];
-    return roleFilter === "all" ? withCaregiver : withCaregiver.filter((p) => p.user_type === roleFilter);
-  }, [withCaregiver, roleFilter]);
+    if (roleFilter === null) return [] as Profile[];
+    return roleFilter === "all" ? inAgency : inAgency.filter((p) => p.user_type === roleFilter);
+  }, [inAgency, roleFilter]);
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -55,8 +45,7 @@ export function PatientSearch({ profiles, agencyId, caregivers = [], caregiver_p
     return filteredByRole.filter((p) => {
       const matchUsername = (p.username ?? "").toLowerCase().includes(term);
       const matchId = p.id.toLowerCase().includes(term);
-      const matchCaregiver = (p as any).caregiver_name ? String((p as any).caregiver_name).toLowerCase().includes(term) : false;
-      return matchUsername || matchId || matchCaregiver;
+      return matchUsername || matchId;
     });
   }, [filteredByRole, searchTerm]);
 
@@ -75,7 +64,7 @@ export function PatientSearch({ profiles, agencyId, caregivers = [], caregiver_p
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search by username, ID, or caregiver..."
+          placeholder="Search by username or ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-9"
@@ -119,9 +108,6 @@ export function PatientSearch({ profiles, agencyId, caregivers = [], caregiver_p
                         </div>
                         <div className="text-xs text-muted-foreground">
                             ID: {user.id.slice(0, 8)}...
-                            {(user as any).caregiver_name && (
-                            <span className="ml-2">• Caregiver: {(user as any).caregiver_name}</span>
-                            )}
                         </div>
                         </div>
                         {onSelectUser && (

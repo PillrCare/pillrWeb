@@ -177,8 +177,6 @@ export default async function AdminDashboard() {
         <PatientSearch
           profiles={agencyProfiles || []}
           agencyId={agencyId}
-          caregivers={activeCaregivers || []}
-          caregiver_patient={caregiver_patient || []}
         />
       </div>
     </div>
