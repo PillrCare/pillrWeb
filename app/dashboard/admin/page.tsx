@@ -28,6 +28,8 @@ export default async function AdminDashboard() {
     redirect(`/dashboard/${profile?.user_type || ""}`);
   }
 
+  const agencyId = profile?.agency_id ?? null;
+
   // const { data: people } = await supabase
   //   .from("profiles")
   //   .select("id, username, user_type")
@@ -40,21 +42,28 @@ export default async function AdminDashboard() {
   const { data: activeCaregivers } = await supabase
     .from("profiles")
     .select("id, username")
-    .eq("user_type", "caregiver");
+    .eq("user_type", "caregiver")
+    .eq("agency_id", agencyId);
 
   // Fetch all patients with their device logs for adherence calculation
   const { data: patients } = await supabase
     .from("profiles")
     .select("id, username")
-    // .select("id, username, user_device(device_id)")
-    .eq("user_type", "patient");
+    .eq("user_type", "patient")
+    .eq("agency_id", agencyId);
+
+  // Fetch all profiles in the same agency for directory search
+  const { data: agencyProfiles } = await supabase
+    .from("profiles")
+    .select("id, username, user_type, agency_id")
+    .eq("agency_id", agencyId);
 
   // Fetch caregiver-patient relationships
   const { data: caregiver_patient } = await supabase
     .from("caregiver_patient")
     .select("caregiver_id, patient_id");
 
-  console.log(patients)
+  // console.log(patients)
   
 
   // Calculate adherence metrics
@@ -164,9 +173,10 @@ export default async function AdminDashboard() {
       <RecentActivity items={activity} />
 
       <div className="w-full">
-        <h2 className="font-bold text-2xl mb-4">Patient Directory</h2>
+        <h2 className="font-bold text-2xl mb-4">Directory</h2>
         <PatientSearch
-          patients={patients || []}
+          profiles={agencyProfiles || []}
+          agencyId={agencyId}
           caregivers={activeCaregivers || []}
           caregiver_patient={caregiver_patient || []}
         />

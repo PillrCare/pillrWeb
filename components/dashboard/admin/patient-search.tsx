@@ -1,50 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-type Patient = {
+type Profile = {
   id: string;
   username: string | null;
-  user_device?: Array<{ device_id: string }>;
+  user_type: "patient" | "caregiver" | "admin" | string;
+  agency_id: string | null;
 };
 
-type PatientWithCaregiver = Patient & {
-  caregiver_name?: string;
-};
+type Caregiver = { id: string; username: string | null };
+type CaregiverPatient = { caregiver_id: string; patient_id: string };
 
 type Props = {
-  patients: Patient[];
-  caregivers?: Array<{ id: string; username: string | null }>;
-  caregiver_patient?: Array<{ caregiver_id: string; patient_id: string }>;
-  onSelectPatient?: (patientId: string) => void;
+  profiles: Profile[]; // mixed users in the same agency
+  agencyId?: string | null; // optional, used to double-check client-side filtering
+  caregivers?: Caregiver[];
+  caregiver_patient?: CaregiverPatient[];
+  onSelectUser?: (userId: string) => void;
 };
 
-export function PatientSearch({ patients, caregivers = [], caregiver_patient = [], onSelectPatient }: Props) {
+export function PatientSearch({ profiles, agencyId, caregivers = [], caregiver_patient = [], onSelectUser }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
+  type RoleFilter = "all" | "patient" | "caregiver" | "admin" | null;
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(null);
 
-  // Enrich patients with caregiver info
-  const enrichedPatients: PatientWithCaregiver[] = patients.map((patient) => {
-    const caregiverLink = caregiver_patient.find((cp) => cp.patient_id === patient.id);
-    const caregiver = caregiverLink ? caregivers.find((c) => c.id === caregiverLink.caregiver_id) : null;
+  // Restrict to agency client-side (RLS should also enforce on server)
+  const inAgency = useMemo(() => {
+    return profiles.filter((p) => (agencyId ? p.agency_id === agencyId : true));
+  }, [profiles, agencyId]);
+
+  // Enrich patients with caregiver name for searching by caregiver
+  const withCaregiver = useMemo(() => {
+    return inAgency.map((p) => {
+      if (p.user_type !== "patient") return p as Profile & { caregiver_name?: string };
+      const link = caregiver_patient.find((cp) => cp.patient_id === p.id);
+      const cg = link ? caregivers.find((c) => c.id === link.caregiver_id) : null;
+      return { ...p, caregiver_name: cg?.username ?? undefined } as Profile & { caregiver_name?: string };
+    });
+  }, [inAgency, caregivers, caregiver_patient]);
+
+  const filteredByRole = useMemo(() => {
+    if (roleFilter === null) return [] as (Profile & { caregiver_name?: string })[];
+    return roleFilter === "all" ? withCaregiver : withCaregiver.filter((p) => p.user_type === roleFilter);
+  }, [withCaregiver, roleFilter]);
+
+  const filtered = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return filteredByRole;
+    return filteredByRole.filter((p) => {
+      const matchUsername = (p.username ?? "").toLowerCase().includes(term);
+      const matchId = p.id.toLowerCase().includes(term);
+      const matchCaregiver = (p as any).caregiver_name ? String((p as any).caregiver_name).toLowerCase().includes(term) : false;
+      return matchUsername || matchId || matchCaregiver;
+    });
+  }, [filteredByRole, searchTerm]);
+
+  const counts = useMemo(() => {
     return {
-      ...patient,
-      caregiver_name: caregiver?.username || undefined,
+      all: inAgency.length,
+      patient: inAgency.filter((p) => p.user_type === "patient").length,
+      caregiver: inAgency.filter((p) => p.user_type === "caregiver").length,
+      admin: inAgency.filter((p) => p.user_type === "admin").length,
     };
-  });
-
-  // Filter patients based on search term
-  const filteredPatients = searchTerm.trim()
-    ? enrichedPatients.filter((patient) => {
-        const term = searchTerm.toLowerCase();
-        return (
-          patient.username?.toLowerCase().includes(term) ||
-          patient.id.toLowerCase().includes(term) ||
-          patient.caregiver_name?.toLowerCase().includes(term)
-        );
-      })
-    : enrichedPatients;
+  }, [inAgency]);
 
   return (
     <div className="w-full space-y-3">
@@ -59,46 +82,68 @@ export function PatientSearch({ patients, caregivers = [], caregiver_patient = [
         />
       </div>
 
-      <div className="w-full max-h-96 overflow-auto border rounded-md p-2">
-        {filteredPatients.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-8">
-            {searchTerm ? "No patients found" : "No patients"}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredPatients.map((patient) => (
-              <div
-                key={patient.id}
-                className="p-3 bg-accent rounded border flex justify-between items-center hover:bg-accent/80 transition-colors"
-              >
-                <div className="flex-1">
-                  <div className="font-medium">{patient.username || "No username"}</div>
-                  <div className="text-xs text-muted-foreground">
-                    ID: {patient.id.slice(0, 8)}...
-                    {patient.caregiver_name && (
-                      <span className="ml-2">• Caregiver: {patient.caregiver_name}</span>
-                    )}
-                  </div>
-                </div>
-                {onSelectPatient && (
-                  <button
-                    className="px-3 py-1.5 text-sm bg-background rounded border hover:bg-background/80"
-                    onClick={() => onSelectPatient(patient.id)}
-                  >
-                    View Details
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="flex gap-2">
+        <Button variant={roleFilter === "all" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("all")}>
+          All <Badge variant="outline" className="ml-1">{counts.all}</Badge>
+        </Button>
+        <Button variant={roleFilter === "patient" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("patient")}>
+          Patients <Badge variant="outline" className="ml-1">{counts.patient}</Badge>
+        </Button>
+        <Button variant={roleFilter === "caregiver" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("caregiver")}>
+          Caregivers <Badge variant="outline" className="ml-1">{counts.caregiver}</Badge>
+        </Button>
+        <Button variant={roleFilter === "admin" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("admin")}>
+          Admins <Badge variant="outline" className="ml-1">{counts.admin}</Badge>
+        </Button>
       </div>
 
-      {searchTerm && (
-        <div className="text-xs text-muted-foreground">
-          Found {filteredPatients.length} of {patients.length} patients
+        {roleFilter === null ? (
+            <div></div>
+        ) : (
+            <div className="w-full max-h-96 overflow-auto border rounded-md p-2">
+                {filtered.length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-8">
+                    {searchTerm ? "No users found" : "No users"}
+                </div>
+                ) : (
+                <div className="space-y-2">
+                    {filtered.map((user) => (
+                    <div
+                        key={user.id}
+                        className="p-3 bg-accent rounded border flex justify-between items-center hover:bg-accent/80 transition-colors"
+                    >
+                        <div className="flex-1">
+                        <div className="font-medium flex items-center gap-2">
+                            {user.username || "No username"}
+                            <Badge variant="secondary" className="capitalize">{user.user_type}</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            ID: {user.id.slice(0, 8)}...
+                            {(user as any).caregiver_name && (
+                            <span className="ml-2">• Caregiver: {(user as any).caregiver_name}</span>
+                            )}
+                        </div>
+                        </div>
+                        {onSelectUser && (
+                        <button
+                            className="px-3 py-1.5 text-sm bg-background rounded border hover:bg-background/80"
+                            onClick={() => onSelectUser(user.id)}
+                        >
+                            View Details
+                        </button>
+                        )}
+                    </div>
+                    ))}
+                </div>
+                )}
+            </div>
+        )}
+
+        {searchTerm && roleFilter !== null && (
+            <div className="text-xs text-muted-foreground">
+            Found {filtered.length} of {filteredByRole.length} users
+            </div>
+        )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
