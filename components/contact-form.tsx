@@ -74,7 +74,11 @@ export function ContactForm({ user }: Props) {
         }),
       });
 
-      const body = (await response.json()) as { error?: string };
+      let body: { error?: string } = {};
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        body = (await response.json()) as { error?: string };
+      }
 
       if (!response.ok) {
         throw new Error(body.error || "Unable to send your message.");
