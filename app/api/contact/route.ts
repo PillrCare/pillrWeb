@@ -32,15 +32,8 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const { data: userData } = await supabase.auth.getUser();
   const user = userData?.user;
-
-  if (userError || !user) {
-    return NextResponse.json(
-      { error: "You must be signed in to contact support." },
-      { status: 401 },
-    );
-  }
 
   let body: Partial<ContactBody> = {};
   try {
@@ -92,16 +85,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, user_type")
-    .eq("id", user.id)
-    .maybeSingle();
+  let profile = null;
+  if (user) {
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("username, user_type")
+      .eq("id", user.id)
+      .maybeSingle();
+    profile = profileData;
+  }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const subject = `Contact request: ${CONTACT_REASONS[reason]} — ${
-    profile?.username ?? user.email ?? user.id
+    profile?.username ?? user?.email ?? contactEmail
   }`;
 
   const html = `
@@ -124,8 +121,8 @@ export async function POST(request: Request) {
 
       <h3 style="margin: 16px 0 8px;">Sender</h3>
       <ul style="padding-left: 18px;">
-        <li>User ID: ${user.id}</li>
-        <li>Email: ${user.email ?? "(none)"}</li>
+        <li>User ID: ${user?.id ?? "(anonymous)"}</li>
+        <li>Email: ${user?.email ?? "(none)"}</li>
         <li>Username: ${profile?.username ?? "(none)"}</li>
         <li>Role: ${profile?.user_type ?? "(none)"}</li>
       </ul>
@@ -138,8 +135,10 @@ export async function POST(request: Request) {
 
   const text = `New contact request\n\nReason: ${CONTACT_REASONS[reason]}\nPreferred contact: ${contactPreference}\nEmail: ${contactEmail}\nPhone: ${contactPhone || "(none)"}\nBest time: ${
     contactBestTime || "(not specified)"
-  }\n\nMessage:\n${contactDescription}\n\nSender\n- User ID: ${user.id}\n- Email: ${
-    user.email ?? "(none)"
+  }\n\nMessage:\n${contactDescription}\n\nSender\n- User ID: ${
+    user?.id ?? "(anonymous)"
+  }\n- Email: ${
+    user?.email ?? "(none)"
   }\n- Username: ${profile?.username ?? "(none)"}\n- Role: ${
     profile?.user_type ?? "(none)"
   }\nOrigin: ${request.headers.get("origin") ?? "(unknown)"}`;

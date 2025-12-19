@@ -1,11 +1,14 @@
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { AuthButton } from "@/components/auth-button";
-import { Hero } from "@/components/hero";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 
-export default function Home() {
+export default function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <main className="min-h-screen flex flex-col items-center">
       <div className="flex-1 w-full flex flex-col gap-20 items-center">
@@ -18,32 +21,26 @@ export default function Home() {
             <div className="flex gap-5 items-center">
               <Link href={"/dashboard"} className="font-semibold">Dashboard</Link>
               <Link href={"/contact"} className="font-semibold">Contact</Link>
+
               {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
             </div>
           </div>
         </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-          <Hero />
-          <main className="flex-1 flex flex-col gap-6 px-4">
-            {/* <h2 className="font-medium text-xl mb-4">Next steps</h2> */}
-            <div className="w-full flex justify-center">
-              <Link className="text-lg border rounded p-2" href={"dashboard"}>Get Started</Link>
-            </div>
-            
-          </main>
+        <div className="flex-1 flex flex-col gap-20 w-full lg:w-1/2 p-5">
+          {children}
         </div>
 
         <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
           <p>
             <a
-              href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
+              href="https://support-pillr.vercel.app"
               target="_blank"
               className="font-bold hover:underline"
               rel="noreferrer"
             >
               Pillr.
             </a>
-            2025{" "}
+            {"  2025"}
           </p>
           <ThemeSwitcher />
         </footer>

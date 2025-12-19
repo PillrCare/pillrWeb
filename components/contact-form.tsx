@@ -25,7 +25,7 @@ type ContactReason = (typeof CONTACT_REASONS)[number]["value"];
 type ContactPreference = "email" | "phone";
 
 type ContactUser = {
-  userId: string;
+  userId: string | null;
   email: string | null;
   username?: string | null;
   userType?: string | null;
