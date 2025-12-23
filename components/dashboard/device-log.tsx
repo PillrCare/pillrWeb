@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { DeviceLogRow } from "@/lib/types"
+import { DeviceLogRow } from "@/lib/types";
+import { formatTimestampLocal } from "@/lib/utils";
 
 export default function DeviceLog({ deviceLog }: { deviceLog: DeviceLogRow[] }) {
   const [open, setOpen] = useState(false);
@@ -56,7 +57,7 @@ export default function DeviceLog({ deviceLog }: { deviceLog: DeviceLogRow[] }) 
 
               <div className="w-20 text-center text-xs">{row.weight ?? "-"}</div>
               
-              <div className="w-32 text-xs text-muted-foreground">{new Date(row.time_stamp).toISOString()}</div>
+              <div className="w-32 text-xs text-muted-foreground">{formatTimestampLocal(row.time_stamp)}</div>
 
             </div>
 

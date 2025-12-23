@@ -82,12 +82,7 @@ export default async function DashboardPatient() {
     }
   }
 
-  // Filter device logs for today only
-  const todaysLogs = deviceLog.filter(log => {
-    const logDate = new Date(log.time_stamp);
-    const today = new Date();
-    return logDate.toDateString() === today.toDateString();
-  });
+  // Pass all device logs; client will interpret in local timezone
 
   
   if (deviceError) {
@@ -109,7 +104,7 @@ export default async function DashboardPatient() {
       </div>
 
       <div>
-        <TodaysSchedule schedule={schedule} deviceLog={todaysLogs} />
+        <TodaysSchedule schedule={schedule} deviceLog={deviceLog} />
       </div>
 
       <div>

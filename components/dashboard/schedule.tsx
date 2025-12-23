@@ -1,6 +1,6 @@
 "use client";
 
-import { ScheduleEvent } from "@/lib/types"
+import { ScheduleEvent } from "@/lib/types";
 
 export default function Schedule({ schedule}: { schedule: ScheduleEvent[]}) {
 
@@ -21,7 +21,7 @@ export default function Schedule({ schedule}: { schedule: ScheduleEvent[]}) {
                     
                     <div key={row.id} className={`flex-row justify-between border rounded p-2 m-2`}>
                         <div>
-                            {row.dose_time} 
+                            {row.dose_time}
                         </div>
                         <div>
                             {row.description}

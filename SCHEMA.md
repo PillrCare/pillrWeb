@@ -1,5 +1,3 @@
-```sql
-
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
@@ -15,6 +13,7 @@ CREATE TABLE public.caregiver_patient (
   caregiver_id uuid NOT NULL,
   patient_id uuid NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  agency uuid,
   CONSTRAINT caregiver_patient_pkey PRIMARY KEY (id),
   CONSTRAINT fk_caregiver_profile FOREIGN KEY (caregiver_id) REFERENCES public.profiles(id),
   CONSTRAINT fk_patient_profile FOREIGN KEY (patient_id) REFERENCES public.profiles(id)
@@ -58,7 +57,22 @@ CREATE TABLE public.device_log (
   time_since_last_open bigint,
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL UNIQUE,
   weight real,
+  is_in_window boolean,
   CONSTRAINT device_log_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.next_event (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  device_id text NOT NULL,
+  user_id uuid NOT NULL,
+  schedule_id uuid NOT NULL,
+  next_time timestamp with time zone,
+  seconds_until_next bigint,
+  window_minutes integer DEFAULT 60,
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT next_event_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_next_event_user FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT fk_next_event_schedule FOREIGN KEY (schedule_id) REFERENCES public.weekly_events(id),
+  CONSTRAINT fk_next_event_device FOREIGN KEY (device_id) REFERENCES public.user_device(device_id)
 );
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
@@ -74,7 +88,7 @@ CREATE TABLE public.user_device (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   assigned_date timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   is_active boolean,
-  device_id text NOT NULL,
+  device_id text NOT NULL UNIQUE,
   user_id uuid,
   CONSTRAINT user_device_pkey PRIMARY KEY (id, device_id),
   CONSTRAINT user_device_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
@@ -90,4 +104,3 @@ CREATE TABLE public.weekly_events (
   CONSTRAINT weekly_events_pkey PRIMARY KEY (id),
   CONSTRAINT weekly_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
-```
