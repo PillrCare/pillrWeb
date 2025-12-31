@@ -55,3 +55,29 @@ export function formatTimestampLocal(ts: string, options?: Intl.DateTimeFormatOp
   const d = new Date(ts);
   return d.toLocaleString(undefined, options);
 }
+
+// Convert a UTC dose_time (HH:mm) to local display time (HH:mm)
+export function convertUtcDoseTimeToLocal(utcDoseTime: string): string {
+  const [hStr, mStr = "0"] = utcDoseTime.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const now = new Date();
+  // Create a Date with today's UTC date and the provided UTC time
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, 0, 0));
+  // Get local hours and minutes
+  const localHours = d.getHours();
+  const localMinutes = d.getMinutes();
+  return `${String(localHours).padStart(2, "0")}:${String(localMinutes).padStart(2, "0")}`;
+}
+
+// Create a Date object for a UTC dose_time in local context (for comparison with current time)
+export function getLocalDateFromUtcDoseTime(utcDoseTime: string): Date {
+  const [hStr, mStr = "0"] = utcDoseTime.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const now = new Date();
+  // Create a Date with today's UTC time, then convert to what that is in local time
+  const utcDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, 0, 0));
+  // This Date object, when compared with other local Dates, will properly account for timezone
+  return utcDate;
+}
