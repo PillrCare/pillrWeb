@@ -1,110 +1,232 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { StatCard } from "@/components/dashboard/admin/stat-card";
 import { SimpleBarChart } from "@/components/dashboard/admin/bar-chart";
 import { SimplePieChart } from "@/components/dashboard/admin/pie-chart";
 import { RecentActivity } from "@/components/dashboard/admin/recent-activity";
 import { PatientSearch } from "@/components/dashboard/admin/patient-search";
+import PatientInfo from "@/components/dashboard/patient-info";
+import Sparkline from "@/components/dashboard/sparkline";
+import MissedDosesList from "@/components/dashboard/missed-doses-list";
+import DeviceLog from "@/components/dashboard/device-log";
+import ScheduleEditor from "@/components/schedule-editor";
+import type { DeviceLogRow } from "@/lib/types";
 
-export default async function AdminDashboard() {
-  const supabase = await createClient();
+type Patient = {
+  id: string;
+  username: string;
+  name?: string;
+  age?: number;
+  phone?: string;
+  email?: string;
+  address?: string;
+  device_id?: string;
+  device_status?: string;
+  adherence_rate?: number;
+  user_type?: string;
+  agency_id?: string;
+};
 
-  // Get authenticated user
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const user = userData?.user;
+type Profile = {
+  id: string;
+  username: string | null;
+  user_type: "patient" | "caregiver" | "admin" | string;
+  agency_id: string | null;
+};
 
-  if (userError || !user) {
-    redirect("/auth/login");
-  }
-
-  // Verify admin access
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.user_type !== "admin") {
-    redirect(`/dashboard/${profile?.user_type || ""}`);
-  }
-
-  const agencyId = profile?.agency_id ?? null;
-
-  // const { data: people } = await supabase
-  //   .from("profiles")
-  //   .select("id, username, user_type")
-
-  // const activeCaregivers = people?.filter((x) => x.user_type = "caregiver")
-  // const patients = people?.filter((x) => x.user_type = "patient")
-
-
-  // Fetch active caregivers
-  const { data: activeCaregivers } = await supabase
-    .from("profiles")
-    .select("id, username")
-    .eq("user_type", "caregiver")
-    .eq("agency_id", agencyId);
-
-  // Fetch all patients with their device logs for adherence calculation
-  const { data: patients } = await supabase
-    .from("profiles")
-    .select("id, username")
-    .eq("user_type", "patient")
-    .eq("agency_id", agencyId);
-
-  // Fetch all profiles in the same agency for directory search
-  const { data: agencyProfiles } = await supabase
-    .from("profiles")
-    .select("id, username, user_type, agency_id")
-    .eq("agency_id", agencyId);
-
-  // Fetch caregiver-patient relationships
-  const { data: caregiver_patient } = await supabase
-    .from("caregiver_patient")
-    .select("caregiver_id, patient_id");
-
-  // console.log(patients)
+export default function AdminDashboard() {
+  const supabase = useMemo(() => createClient(), []);
+  const [userProfile, setUserProfile] = useState<Patient | null>(null);
+  const [agencyId, setAgencyId] = useState<string | null>(null);
+  const [activeCaregivers, setActiveCaregivers] = useState<any[] | null>(null);
+  const [patients, setPatients] = useState<any[] | null>(null);
+  const [agencyProfiles, setAgencyProfiles] = useState<Profile[] | null>(null);
+  const [loading, setLoading] = useState(true);
   
+  // Patient detail modal state
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [missedDoses, setMissedDoses] = useState<Array<any>>([]);
+  const [adherenceTrend, setAdherenceTrend] = useState<Array<{ date: string; rate: number }>>([]);
+  const [deviceLog, setDeviceLog] = useState<DeviceLogRow[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<{ name?: string; age?: number; phone?: string; email?: string; address?: string }>({});
+
+  // Load admin profile and fetch data
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const user = userData?.user;
+
+        if (userError || !user) {
+          return;
+        }
+
+        // Verify admin access and get profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.user_type !== "admin") {
+          return;
+        }
+
+        if (mounted) {
+          setUserProfile(profile);
+          setAgencyId(profile?.agency_id);
+        }
+
+        // Fetch active caregivers
+        const { data: caregivers } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .eq("user_type", "caregiver")
+          .eq("agency_id", profile?.agency_id);
+
+        // Fetch all patients
+        const { data: patientList } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .eq("user_type", "patient")
+          .eq("agency_id", profile?.agency_id);
+
+        // Fetch all profiles in the same agency for directory search
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, username, user_type, agency_id")
+          .eq("agency_id", profile?.agency_id);
+
+        if (mounted) {
+          setActiveCaregivers(caregivers);
+          setPatients(patientList);
+          setAgencyProfiles(profiles);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabase]);
+
+  // Load patient details when selected
+  useEffect(() => {
+    if (!selectedPatientId) {
+      setSelectedPatient(null);
+      setMissedDoses([]);
+      setAdherenceTrend([]);
+      setDeviceLog([]);
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadPatientDetails() {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", selectedPatientId)
+          .single();
+
+        if (mounted) setSelectedPatient(profile ?? null);
+
+        // Load missed doses
+        try {
+          const { data: missed } = await supabase
+            .from("missed_doses")
+            .select("*")
+            .eq("user_id", selectedPatientId)
+            .order("created_at", { ascending: false })
+            .limit(10);
+          if (mounted) setMissedDoses(missed ?? []);
+        } catch (e) {
+          console.warn("missed_doses table not available", e);
+          if (mounted) setMissedDoses([]);
+        }
+
+        // Load adherence trend
+        try {
+          const { data: trend } = await supabase
+            .from("adherence")
+            .select("date, rate")
+            .eq("user_id", selectedPatientId)
+            .order("date", { ascending: true })
+            .limit(7);
+          if (mounted && trend && trend.length > 0) {
+            setAdherenceTrend(trend);
+          } else if (mounted) {
+            setAdherenceTrend([
+              {
+                date: new Date().toISOString().slice(0, 10),
+                rate: profile?.adherence_rate ?? 0,
+              },
+            ]);
+          }
+        } catch (e) {
+          console.warn("adherence table not available", e);
+          if (mounted) {
+            setAdherenceTrend([
+              {
+                date: new Date().toISOString().slice(0, 10),
+                rate: profile?.adherence_rate ?? 0,
+              },
+            ]);
+          }
+        }
+
+        // Load device logs
+        try {
+          const { data: device } = await supabase
+            .from("user_device")
+            .select("*")
+            .eq("user_id", selectedPatientId)
+            .maybeSingle();
+
+          if (device?.device_id) {
+            const { data: logData } = await supabase
+              .from("device_log")
+              .select("*")
+              .eq("device_id", device.device_id)
+              .order("time_stamp", { ascending: false })
+              .limit(50);
+
+            if (mounted) setDeviceLog(logData ?? []);
+          } else {
+            if (mounted) setDeviceLog([]);
+          }
+        } catch (e) {
+          console.warn("user device logs not available", e);
+          if (mounted) setDeviceLog([]);
+        }
+      } catch (e) {
+        console.error("Failed to load patient details", e);
+      }
+    }
+
+    loadPatientDetails();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedPatientId, supabase]);
 
   // Calculate adherence metrics
   let totalAdherence = 0;
   let patientsWithData = 0;
   const adherenceByPatient: number[] = [];
-
-  // if (patients) {
-  //   for (const patient of patients) {
-  //     const deviceId = patient.user_device?.[0]?.device_id;
-  //     if (deviceId) {
-  //       // Get weekly events for this patient
-  //       const { data: events } = await supabase
-  //         .from("weekly_events")
-  //         .select("*")
-  //         .eq("user_id", patient.id);
-
-  //       // Get device logs from past week
-  //       const weekAgo = new Date();
-  //       weekAgo.setDate(weekAgo.getDate() - 7);
-        
-  //       const { data: logs } = await supabase
-  //         .from("device_log")
-  //         .select("*")
-  //         .eq("device_id", deviceId)
-  //         .gte("time_stamp", weekAgo.toISOString())
-  //         .eq("search_success", true);
-
-  //       if (events && events.length > 0) {
-  //         const expectedDoses = events.length * 7; // events per week
-  //         const actualDoses = logs?.length || 0;
-  //         const adherence = Math.min(100, (actualDoses / expectedDoses) * 100);
-          
-  //         totalAdherence += adherence;
-  //         patientsWithData++;
-  //         adherenceByPatient.push(adherence);
-  //       }
-  //     }
-  //   }
-  // }
-
   const avgAdherence = patientsWithData > 0 ? Math.round(totalAdherence / patientsWithData) : 0;
 
   // Calculate weekly adherence overview (past 7 days)
@@ -136,18 +258,15 @@ export default async function AdminDashboard() {
     ...(distribution.poor > 0 ? [{ label: "Below 70%", value: distribution.poor, color: "#991b1b", labelColor: "text-red-700" }] : []),
   ];
 
-  // Fetch recent profile updates (mock activity for now)
-  const { data: recentEvents } = await supabase
-    .from("device_log")
-    .select("*")
-    .order("time_stamp", { ascending: false })
-    .limit(5);
+  const activity: any[] = [];
 
-  const activity = recentEvents?.map(p => ({
-    device: p.device_id || "Unknown user",
-    action: "Updated patient information",
-    time: getRelativeTime(p.time_stamp),
-  })) || [];
+  const handleSelectPatient = (patientId: string) => {
+    setSelectedPatientId(patientId);
+  };
+
+  if (loading) {
+    return <div>Loading…</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -177,8 +296,80 @@ export default async function AdminDashboard() {
         <PatientSearch
           profiles={agencyProfiles || []}
           agencyId={agencyId}
+          onSelectUser={handleSelectPatient}
         />
       </div>
+
+      {selectedPatientId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedPatientId(null)} />
+
+          <div className="relative z-10 w-full max-w-6xl max-h-[90vh] overflow-auto bg-background rounded p-6 border">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Patient Details & Schedule</h3>
+              <div className="flex items-center gap-2">
+                <button className="p-2 rounded border" onClick={() => { setIsEditing(false); setSelectedPatientId(null); }}>Close</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left column: Patient Info + Stats + Problems */}
+              <div className="lg:col-span-1 space-y-4">
+                <PatientInfo
+                  patient={selectedPatient}
+                  isEditing={isEditing}
+                  editForm={editForm}
+                  setEditForm={setEditForm}
+                  onEdit={() => { setIsEditing(true); setEditForm({ name: selectedPatient?.name, age: selectedPatient?.age, phone: selectedPatient?.phone, email: selectedPatient?.email, address: selectedPatient?.address }); }}
+                  onCancel={() => { setIsEditing(false); setEditForm({}); }}
+                  onSave={async () => {
+                    try {
+                      const updates = { ...editForm };
+                      await supabase.from('profiles').update(updates).eq('id', selectedPatient?.id);
+                      // refresh
+                      const { data: refreshed } = await supabase.from('profiles').select('*').eq('id', selectedPatient?.id).single();
+                      setSelectedPatient(refreshed ?? selectedPatient);
+                      setIsEditing(false);
+                      setEditForm({});
+                    } catch (e) {
+                      console.error('Failed to save patient', e);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="p-3 bg-red-50 rounded border border-red-200">
+                <h4 className="font-semibold mb-2"> No Recent Missed Doses</h4>
+                <div className="space-y-2">
+                  
+                </div>
+              </div>
+
+               <div className="lg:col-span-1 space-y-4">
+                <DeviceLog deviceLog={deviceLog} />
+               </div>
+
+
+              {/* Middle + Right: Chart, meds, missed doses, and scheduler */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="p-3 bg-accent rounded border">
+                  <h4 className="font-semibold mb-3">Adherence Trend (Last 7 Days)</h4>
+                  <Sparkline data={adherenceTrend} />
+                </div>
+
+                {/* <MedicationsList medications={medications} /> */}
+
+                <MissedDosesList missed={missedDoses} />
+
+                <div className="p-3 bg-accent rounded border">
+                  <h4 className="font-semibold mb-3">Weekly Schedule</h4>
+                  <ScheduleEditor which_user={selectedPatientId ?? undefined} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
