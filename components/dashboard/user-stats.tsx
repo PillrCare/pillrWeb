@@ -1,6 +1,8 @@
 "use client";
 
-import { DeviceLogRow } from "@/lib/types"
+import type { Tables } from "@/lib/types";
+
+type DeviceLogRow = Tables<"device_log">;
 
 export default function UserStats({ deviceLog }: { deviceLog: DeviceLogRow[] }) {
 

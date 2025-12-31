@@ -5,13 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { Tables } from "@/lib/types";
 
-type Profile = {
-  id: string;
-  username: string | null;
-  user_type: "patient" | "caregiver" | "admin" | string;
-  agency_id: string | null;
-};
+type Profile = Tables<"profiles">;
 
 type Caregiver = { id: string; username: string | null };
 type CaregiverPatient = { caregiver_id: string; patient_id: string };

@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { DeviceLogRow } from "@/lib/types";
+import type { Tables } from "@/lib/types";
 import { formatTimestampLocal } from "@/lib/utils";
+
+type DeviceLogRow = Tables<"device_log">;
 
 export default function DeviceLog({ deviceLog }: { deviceLog: DeviceLogRow[] }) {
   const [open, setOpen] = useState(false);

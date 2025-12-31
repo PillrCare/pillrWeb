@@ -1,7 +1,10 @@
 "use client";
 
-import { ScheduleEvent, DeviceLogRow } from "@/lib/types";
+import type { Tables } from "@/lib/types";
 import { getSchemaDayOfWeekForDate, convertUtcDoseTimeToLocal, getLocalDateFromUtcDoseTime } from "@/lib/utils";
+
+type ScheduleEvent = Tables<"weekly_events">;
+type DeviceLogRow = Tables<"device_log">;
 
 export default function TodaysSchedule({ schedule, deviceLog }: { schedule: ScheduleEvent[], deviceLog: DeviceLogRow[] }) {
 

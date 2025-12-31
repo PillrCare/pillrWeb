@@ -7,10 +7,11 @@ import UserStats from "@/components/dashboard/user-stats";
 import GenerateCode from "@/components/generate_code";
 import EnrollButton from "@/components/enroll-button";
 import Schedule from "@/components/dashboard/schedule";
-
-
-import type { DeviceLogRow, ScheduleEvent } from '@/lib/types';
+import type { Tables } from '@/lib/types';
 import TodaysSchedule from "@/components/dashboard/todays-schedule";
+
+type DeviceLogRow = Tables<"device_log">;
+type ScheduleEvent = Tables<"weekly_events">;
 
 export default async function DashboardPatient() {
   const supabase = await createClient();
@@ -122,15 +123,7 @@ export default async function DashboardPatient() {
       
 
       <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your device:</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          <h2 className="font-bold text-2xl">{device?.device_id ?? "No device"}</h2>
-          <h4 className="font-semibold text-2xs mb-2">{device?.is_active ? "Active": "Not active"}</h4>
-        </pre>
-
-        {/* <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          {JSON.stringify(profile, null, 2)}
-        </pre> */}
+        <h2 className="font-bold text-2xl mb-4">Device Actions</h2>
         <EnrollButton userId={user.id}/>
       </div>
       

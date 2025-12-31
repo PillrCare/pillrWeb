@@ -1,7 +1,9 @@
 "use client";
 
-import { ScheduleEvent } from "@/lib/types";
+import type { Tables } from "@/lib/types";
 import { convertUtcDoseTimeToLocal } from "@/lib/utils";
+
+type ScheduleEvent = Tables<"weekly_events">;
 
 export default function Schedule({ schedule}: { schedule: ScheduleEvent[]}) {
 
@@ -14,7 +16,7 @@ export default function Schedule({ schedule}: { schedule: ScheduleEvent[]}) {
     return (
         <div className="rounded border">
             <div className="flex items-center justify-between p-3">
-                <h3 className="text-lg font-semibold">Weekley Schedule ({dayName})</h3>
+                <h3 className="text-lg font-semibold">Weekley Schedule </h3>
             </div>
 
             <div className="flex-row justify-between">

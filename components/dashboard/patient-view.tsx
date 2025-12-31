@@ -7,8 +7,9 @@ import PatientInfo from "./patient-info";
 import Sparkline from "./sparkline";
 import MissedDosesList from "./missed-doses-list";
 import DeviceLog from '@/components/dashboard/device-log';
+import type { Tables } from '@/lib/types';
 
-import type { DeviceLogRow } from '@/lib/types';
+type DeviceLogRow = Tables<"device_log">;
 
 
 type Patient = {
