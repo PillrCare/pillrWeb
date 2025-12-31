@@ -12,6 +12,7 @@ import TodaysSchedule from "@/components/dashboard/todays-schedule";
 
 type DeviceLogRow = Tables<"device_log">;
 type ScheduleEvent = Tables<"weekly_events">;
+type PatientStatsRow = Tables<"patient_stats">;
 
 export default async function DashboardPatient() {
   const supabase = await createClient();
@@ -68,6 +69,23 @@ export default async function DashboardPatient() {
       deviceLog = logData;
     }
   }
+
+  // Fetch patient statistics from the view
+  let patientStats: PatientStatsRow | null = null;
+  if (device?.device_id) {
+    const { data: statsData, error: statsError } = await supabase
+      .from('patient_stats')
+      .select('*')
+      .eq('patient_id', userId)
+      .maybeSingle();
+
+    if (statsError) {
+      console.error('Failed to load patient stats:', statsError);
+    } else if (statsData) {
+      patientStats = statsData;
+    }
+  }
+
   let schedule: ScheduleEvent[] = [];
   if (device?.device_id) {
     const { data: scheduleData, error: scheduleError } = await supabase
@@ -101,7 +119,7 @@ export default async function DashboardPatient() {
       </div>
 
       <div>
-        <UserStats deviceLog={deviceLog} />
+        <UserStats patientStats={patientStats} />
       </div>
 
       <div>
