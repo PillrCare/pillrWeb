@@ -20,6 +20,56 @@ const DAYS = [
   { value: 7, label: "Sunday" },
 ];
 
+// Convert UTC time to local timezone
+function utcTimeToLocal(dayOfWeek: number, utcTime: string): { day_of_week: number; dose_time: string } {
+  const [hours, minutes] = utcTime.split(':').map(Number);
+  
+  // Create a Date object with the UTC time (using a reference date)
+  const date = new Date();
+  const currentDay = date.getUTCDay(); // 0 = Sunday
+  const targetUTCDay = dayOfWeek === 7 ? 0 : dayOfWeek;
+  let daysOffset = targetUTCDay - currentDay;
+  if (daysOffset < 0) daysOffset += 7;
+  
+  date.setUTCDate(date.getUTCDate() + daysOffset);
+  date.setUTCHours(hours, minutes, 0, 0);
+  
+  // Get the local time from this UTC date
+  const localHours = date.getHours();
+  const localMinutes = date.getMinutes();
+  const localDay = date.getDay(); // 0 = Sunday
+  const localDayOfWeek = localDay === 0 ? 7 : localDay;
+  
+  const localTime = `${String(localHours).padStart(2, '0')}:${String(localMinutes).padStart(2, '0')}`;
+  
+  return { day_of_week: localDayOfWeek, dose_time: localTime };
+}
+
+// Convert local time to UTC
+function localTimeToUTC(dayOfWeek: number, localTime: string): { day_of_week: number; dose_time: string } {
+  const [hours, minutes] = localTime.split(':').map(Number);
+  
+  // Create a Date object with the local time
+  const date = new Date();
+  const currentDay = date.getDay();
+  const targetLocalDay = dayOfWeek === 7 ? 0 : dayOfWeek;
+  let daysOffset = targetLocalDay - currentDay;
+  if (daysOffset < 0) daysOffset += 7;
+  
+  date.setDate(date.getDate() + daysOffset);
+  date.setHours(hours, minutes, 0, 0);
+  
+  // Get the UTC time
+  const utcHours = date.getUTCHours();
+  const utcMinutes = date.getUTCMinutes();
+  const utcDay = date.getUTCDay();
+  const utcDayOfWeek = utcDay === 0 ? 7 : utcDay;
+  
+  const utcTime = `${String(utcHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}`;
+  
+  return { day_of_week: utcDayOfWeek, dose_time: utcTime };
+}
+
 export default function ScheduleEditor({ which_user }: { which_user?: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -65,9 +115,12 @@ export default function ScheduleEditor({ which_user }: { which_user?: string }) 
             dose_time: string | number | null;
             description?: string | null;
           };
+          const utcTime = typeof row.dose_time === "string" ? row.dose_time : String(row.dose_time);
+          // Convert from UTC to local timezone
+          const localEvent = utcTimeToLocal(row.day_of_week, utcTime);
           return {
-            day_of_week: row.day_of_week,
-            dose_time: typeof row.dose_time === "string" ? row.dose_time : String(row.dose_time),
+            day_of_week: localEvent.day_of_week,
+            dose_time: localEvent.dose_time,
             description: row.description ?? null,
           };
         });
@@ -111,12 +164,16 @@ export default function ScheduleEditor({ which_user }: { which_user?: string }) 
       const { error: delError } = await supabase.from("weekly_events").delete().eq("user_id", userId);
       if (delError) console.error("delete error", delError);
 
-      const payload = events.map((e) => ({
-        user_id: userId,
-        day_of_week: e.day_of_week,
-        dose_time: e.dose_time,
-        description: e.description,
-      }));
+      const payload = events.map((e) => {
+        // Convert from local timezone to UTC before saving
+        const utcEvent = localTimeToUTC(e.day_of_week, e.dose_time);
+        return {
+          user_id: userId,
+          day_of_week: utcEvent.day_of_week,
+          dose_time: utcEvent.dose_time,
+          description: e.description,
+        };
+      });
 
       if (payload.length > 0) {
         const { error: insertError } = await supabase.from("weekly_events").insert(payload);
