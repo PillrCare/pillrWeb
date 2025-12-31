@@ -33,37 +33,53 @@ export default function DeviceLog({ deviceLog }: { deviceLog: DeviceLogRow[] }) 
 
       {open && deviceLog && deviceLog.length > 0 && (
         <div className="overflow-auto">
-          {deviceLog.map((row) => (
+          {deviceLog.map((row) => {
+            const isSuccessfulOpen = row.search_event && row.search_success && row.is_in_window;
+            const isLateOpen = row.search_event && row.search_success && !row.is_in_window;
+            const isFailedAccess = row.search_event && !row.search_success;
+            
+            const bgColor = isFailedAccess 
+              ? 'bg-red-100 dark:bg-red-900/20' 
+              : isSuccessfulOpen 
+              ? 'bg-green-100 dark:bg-green-900/20'
+              : isLateOpen
+              ? 'bg-amber-100 dark:bg-amber-900/20'
+              : 'bg-accent';
 
-            <div key={row.id} className={`border-t flex items-start p-2 ${row.search_event && !row.search_success ? 'bg-destructive' : 'bg-accent'}`}>
-              
-              <div className="flex-1 w-full">
-                <div className="text-lg font-medium text-foreground">
-                  {row.search_event
-                    ? (row.search_success ? "Successfully Opened" : "Failed Access")
-                    : row.enroll_event
-                    ? "New Finger Enrolled"
-                    : row.e_unlock
-                    ? "Emergency Open"
-                    : row.clear_event
-                    ? "Clear"
-                    : "Other"}
-                </div>
+            return (
+              <div key={row.id} className={`border-t flex items-start p-2 ${bgColor}`}>
                 
+                <div className="flex-1 w-full">
+                  <div className="text-lg font-medium text-foreground">
+                    {row.search_event && row.search_success && row.is_in_window
+                      ? "Successfully Opened"
+                      : row.search_event && row.search_success && !row.is_in_window
+                      ? "Late Open"
+                      : row.search_event && !row.search_success
+                      ? "Failed Access"
+                      : row.enroll_event
+                      ? "New Finger Enrolled"
+                      : row.e_unlock
+                      ? "Emergency Open"
+                      : row.clear_event
+                      ? "Clear"
+                      : "Other"}
+                  </div>
+                  
 
-                <div className="text-xs font-mono whitespace-pre-wrap text-foreground mt-1 pl-4">
-                  {`searched_id: ${row.searched_id ?? "-"}\nsearch_success: ${row.search_success ?? "-"}\nenroll_id: ${row.enroll_id ?? "-"}\nenroll_success: ${row.enroll_success ?? "-"}`}
+                  <div className="text-xs font-mono whitespace-pre-wrap text-foreground mt-1 pl-4">
+                    {`searched_id: ${row.searched_id ?? "-"}\nsearch_success: ${row.search_success ?? "-"}\nis_in_window: ${row.is_in_window ?? "-"}\nenroll_id: ${row.enroll_id ?? "-"}\nenroll_success: ${row.enroll_success ?? "-"}`}
+                  </div>
+
                 </div>
+
+                <div className="w-20 text-center text-xs">{row.weight ?? "-"}</div>
+                
+                <div className="w-32 text-xs text-muted-foreground">{formatTimestampLocal(row.time_stamp)}</div>
 
               </div>
-
-              <div className="w-20 text-center text-xs">{row.weight ?? "-"}</div>
-              
-              <div className="w-32 text-xs text-muted-foreground">{formatTimestampLocal(row.time_stamp)}</div>
-
-            </div>
-
-          ))}
+            );
+          })}
 
         </div>
 
