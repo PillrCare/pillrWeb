@@ -7,9 +7,12 @@ import PatientInfo from "./patient-info";
 import Sparkline from "./sparkline";
 import MissedDosesList from "./missed-doses-list";
 import DeviceLog from '@/components/dashboard/device-log';
+import Schedule from "./schedule";
 import type { Tables } from '@/lib/types';
 
 type DeviceLogRow = Tables<"device_log">;
+type PatientStatsRow = Tables<"patient_stats">;
+type ScheduleEvent = Tables<"weekly_events">;
 
 
 type Patient = {
@@ -37,6 +40,9 @@ export default function PatientView() {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<{ name?: string; age?: number; phone?: string; email?: string; address?: string }>({});
     const [deviceLog, setDeviceLog] = useState<DeviceLogRow[]>([]);
+    const [patientStats, setPatientStats] = useState<PatientStatsRow | null>(null);
+    const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
+    const [showScheduleEditor, setShowScheduleEditor] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -93,6 +99,8 @@ export default function PatientView() {
             setMissedDoses([]);
             setAdherenceTrend([]);
             setDeviceLog([]);
+            setPatientStats(null);
+            setSchedule([]);
             return;
         }
 
@@ -158,6 +166,32 @@ export default function PatientView() {
                 } catch (e) {
                     console.warn("user device logs not available", e);
                     if (mounted) setDeviceLog([]);
+                }
+
+                // Load patient statistics from patient_stats view
+                try {
+                    const { data: statsData } = await supabase
+                        .from('patient_stats')
+                        .select('*')
+                        .eq('patient_id', openPatientId)
+                        .maybeSingle();
+                    if (mounted) setPatientStats(statsData ?? null);
+                } catch (e) {
+                    console.warn('patient_stats view not available', e);
+                    if (mounted) setPatientStats(null);
+                }
+
+                // Load weekly schedule
+                try {
+                    const { data: scheduleData } = await supabase
+                        .from('weekly_events')
+                        .select('*')
+                        .eq('user_id', openPatientId)
+                        .order('dose_time', { ascending: true });
+                    if (mounted) setSchedule(scheduleData ?? []);
+                } catch (e) {
+                    console.warn('weekly_events table not available', e);
+                    if (mounted) setSchedule([]);
                 }
 
             } catch (e) {
@@ -228,6 +262,38 @@ export default function PatientView() {
                                         }
                                     }}
                                 />
+
+                                {patientStats && (
+                                    <div className="p-3 rounded border bg-accent">
+                                        <h4 className="font-semibold mb-2">Patient Statistics</h4>
+                                        <div className="space-y-1 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Overall adherence</span>
+                                                <span className="font-semibold">{(patientStats.on_time_adherence_pct ?? 0).toFixed(1)}%</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Past week</span>
+                                                <span className="font-semibold">{(patientStats.adherence_past_week_pct ?? 0).toFixed(1)}%</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Past month</span>
+                                                <span className="font-semibold">{(patientStats.adherence_past_month_pct ?? 0).toFixed(1)}%</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Missed doses</span>
+                                                <span className="font-semibold">{patientStats.missed_doses ?? 0}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Total opens</span>
+                                                <span className="font-semibold">{patientStats.total_opens ?? 0}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Emergency accesses</span>
+                                                <span className="font-semibold">{patientStats.emercency_accesses ?? 0}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="p-3 bg-red-50 rounded border border-red-200">
@@ -253,12 +319,33 @@ export default function PatientView() {
 
                                 <MissedDosesList missed={missedDoses} />
 
-                                <div className="p-3 bg-accent rounded border">
-                                    <h4 className="font-semibold mb-3">Weekly Schedule</h4>
-                                    <ScheduleEditor which_user={openPatientId ?? undefined} />
+                                <div className="p-3 bg-accent rounded border space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-semibold">Weekly Schedule</h4>
+                                        <button
+                                            className="text-sm px-3 py-1 rounded border hover:bg-muted"
+                                            onClick={() => setShowScheduleEditor(true)}
+                                        >
+                                            Edit Schedule
+                                        </button>
+                                    </div>
+                                    <Schedule schedule={schedule} />
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {showScheduleEditor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowScheduleEditor(false)} />
+                    <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-auto bg-background rounded p-6 border">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold">Edit Weekly Schedule</h3>
+                            <button className="p-2 rounded border" onClick={() => setShowScheduleEditor(false)}>Close</button>
+                        </div>
+                        <ScheduleEditor which_user={openPatientId ?? undefined} />
                     </div>
                 </div>
             )}
