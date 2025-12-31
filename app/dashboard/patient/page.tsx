@@ -111,10 +111,13 @@ export default async function DashboardPatient() {
 
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex-down gap-3 items-center">
+      <div className="w-full bg-accent text-sm p-3 px-5 rounded-md text-foreground flex justify-between items-center">
+        <div className="flex-down gap-3 items-center">
           <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
           <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
+        </div>
+        <div className="">
+          <GenerateCode/>
         </div>
       </div>
 
@@ -134,9 +137,7 @@ export default async function DashboardPatient() {
         <DeviceLog deviceLog={deviceLog} />
       </div>
 
-      <div>
-        <GenerateCode/>
-      </div>
+      
 
       
 

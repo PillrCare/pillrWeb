@@ -178,7 +178,7 @@ export default function PatientView() {
 
     return (
         <div className="w-full flex flex-col gap-2 items-start">
-            <h2 className="font-bold text-2xl mb-4">Your patients</h2>
+            
             <pre className="w-full text-xs font-mono p-3 rounded border max-h-64 overflow-auto">
                 {patients?.map((p, idx) => (
                     <div className="w-full m-2 p-2 bg-accent rounded border flex justify-between align-center" key={p.id ?? idx}>

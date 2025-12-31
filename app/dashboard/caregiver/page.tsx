@@ -53,8 +53,16 @@ export default async function DashboardPatient() {
         </pre>
       </div> */}
 
-      <PatientView/>
-      <ConnectPatient/>
+      <div className="w-full">
+        <div className="w-full flex justify-between items-center">
+          <h2 className="font-bold text-2xl mb-4">Your patients</h2>
+          <div>
+            <ConnectPatient/>
+          </div>
+        </div>
+        <PatientView/>
+      </div>
+      
       
     </div>
   );
