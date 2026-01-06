@@ -1,0 +1,130 @@
+"use client";
+
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+interface EnrollButtonProps {
+    patientId: string;
+}
+
+export default function EnrollButton({ patientId }: EnrollButtonProps) {
+    const supabase = createClient();
+    const [showModal, setShowModal] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const openModal = () => {
+        setError(null);
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        if (loading) return;
+        setShowModal(false);
+        setError(null);
+    };
+
+    const sendEnroll = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { error: enrollError } = await supabase
+                .from("device_commands")
+                .update({ enroll: true })
+                .eq("user_id", patientId);
+
+            if (enrollError) {
+                console.error("Failed to trigger enroll:", enrollError);
+                setError(enrollError.message ?? "Failed to trigger enroll");
+                return;
+            }
+
+            setShowModal(false);
+            alert("Enroll triggered successfully");
+        } catch (e) {
+            console.error("Error triggering enroll", e);
+            setError("Error triggering enroll");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <>
+            <button
+                className="p-2 rounded border bg-background hover:bg-accent"
+                onClick={openModal}
+                disabled={loading}
+            >
+                Enroll New Finger
+            </button>
+
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => closeModal()} aria-hidden />
+
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="modal-title"
+                        className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl p-8 border border-gray-200"
+                    >
+                        <button
+                            type="button"
+                            onClick={closeModal}
+                            disabled={loading}
+                            aria-label="Close dialog"
+                            className="absolute top-4 right-4 inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="w-6 h-6"
+                                aria-hidden
+                            >
+                                <path d="M6 6l12 12" />
+                                <path d="M6 18L18 6" />
+                            </svg>
+                        </button>
+
+                        <h3 id="modal-title" className="text-3xl font-bold text-red-600 mb-6">
+                            Please Read These Instructions
+                        </h3>
+
+                        <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded">
+                            <ol className="list-decimal list-inside text-xl text-gray-800 space-y-4 leading-relaxed">
+                                <li>Press "Send Enroll Command" below.</li>
+                                <li>Immediately place the user's finger on the device sensor.</li>
+                                <li>When the sensor flashes red, remove the finger briefly, then place it back on the sensor.</li>
+                                <li>Once the sensor turns green, the enrollment is complete.</li>
+                                <li>Test the fingerprint to confirm it works.</li>
+                            </ol>
+                        </div>
+
+                        {error ? (
+                            <div className="text-lg text-red-600 mb-6 p-4 bg-red-50 rounded border border-red-200 font-medium">
+                                {error}
+                            </div>
+                        ) : null}
+
+                        <div className="flex justify-center pt-4">
+                            <button
+                                type="button"
+                                onClick={sendEnroll}
+                                disabled={loading}
+                                className="px-8 py-4 text-2xl font-bold rounded-lg shadow-md btn-accent disabled:opacity-60 hover:shadow-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
+                            >
+                                {loading ? "Sending..." : "Send Enroll Command"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}

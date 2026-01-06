@@ -8,6 +8,8 @@ import Sparkline from "./sparkline";
 import MissedDosesList from "./missed-doses-list";
 import DeviceLog from '@/components/dashboard/device-log';
 import Schedule from "./schedule";
+import EmergencyUnlockButton from "./emergency-unlock-button";
+import EnrollButton from "./enroll_button";
 import type { Tables } from '@/lib/types';
 
 type DeviceLogRow = Tables<"device_log">;
@@ -234,6 +236,8 @@ export default function PatientView() {
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Patient Details & Schedule</h3>
                             <div className="flex items-center gap-2">
+                                {openPatientId && <EmergencyUnlockButton patientId={openPatientId} />}
+                                {openPatientId && <EnrollButton patientId={openPatientId} />}
                                 <button className="p-2 rounded border" onClick={() => { setIsEditing(false); setOpenPatientId(null); }}>Close</button>
                             </div>
                         </div>
