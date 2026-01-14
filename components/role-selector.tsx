@@ -66,7 +66,7 @@ export function RoleSelector({ className }: { className?: string }) {
                 
                 // Route users based on selected role
                 if (role === "patient") {
-                    router.push("/auth/profile-setup");
+                    router.push("/auth/profile-setup/schedule");
                 } else if (role === "caregiver") {
                     router.push("/dashboard");
                 } else {
