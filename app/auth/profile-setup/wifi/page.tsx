@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-import ScheduleEditor from "@/components/schedule-editor";
+import WifiSetup from "@/components/wifi-setup";
 
 
 
@@ -22,7 +22,7 @@ export default async function Page() {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
-        <ScheduleEditor which_user={"0d43174c-a53e-41c7-ad3b-7abcbbee5eab"} />
+        <WifiSetup path="/auth/profile-setup/schedule" />
       </div>
     </div>
   );

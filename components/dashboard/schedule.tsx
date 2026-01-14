@@ -2,6 +2,7 @@
 
 import type { Tables } from "@/lib/types";
 import { convertUtcDoseTimeToLocal } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 type ScheduleEvent = Tables<"weekly_events">;
 
@@ -13,10 +14,15 @@ export default function Schedule({ schedule}: { schedule: ScheduleEvent[]}) {
     const dayName: string = days[day];
 
 
+    const router = useRouter();
+
     return (
         <div className="rounded border">
             <div className="flex items-center justify-between p-3">
                 <h3 className="text-lg font-semibold">Weekley Schedule </h3>
+                <button onClick={() => router.push("/auth/profile-setup")}>
+                    Edit Schedule
+                </button>
             </div>
 
             <div className="flex-row justify-between">

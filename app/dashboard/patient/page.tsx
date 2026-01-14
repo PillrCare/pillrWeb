@@ -9,6 +9,7 @@ import EnrollButton from "@/components/enroll-button";
 import Schedule from "@/components/dashboard/schedule";
 import type { Tables } from '@/lib/types';
 import TodaysSchedule from "@/components/dashboard/todays-schedule";
+import EmergencyUnlockButton from "@/components/dashboard/emergency-unlock-button";
 
 type DeviceLogRow = Tables<"device_log">;
 type ScheduleEvent = Tables<"weekly_events">;
@@ -116,8 +117,10 @@ export default async function DashboardPatient() {
           <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
           <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
         </div>
-        <div className="">
+        <div className="flex inline">
           <GenerateCode/>
+          <EmergencyUnlockButton patientId={user.id}/>
+
         </div>
       </div>
 

@@ -70,7 +70,7 @@ function localTimeToUTC(dayOfWeek: number, localTime: string): { day_of_week: nu
   return { day_of_week: utcDayOfWeek, dose_time: utcTime };
 }
 
-export default function ScheduleEditor({ which_user }: { which_user?: string }) {
+export default function ScheduleEditor({ which_user, path = "/dashboard" }: { which_user?: string; path?: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -184,7 +184,7 @@ export default function ScheduleEditor({ which_user }: { which_user?: string }) 
     } finally {
       setSaving(false);
     }
-    router.push("/dashboard");
+    router.push(path);
 
   }
 
@@ -238,7 +238,7 @@ export default function ScheduleEditor({ which_user }: { which_user?: string }) 
 
       <div className="w-full flex justify-left">
         <button className="p-2 bg-accent border rounded" onClick={saveAndContinue} disabled={saving}>{saving ? "Saving…" : "Save and Continue"}</button>
-        <button className="p-2 ml-2 bg-destructive border rounded" onClick={() => router.push("/dashboard")}>Skip for now</button>
+        <button className="p-2 ml-2 bg-destructive border rounded" onClick={() => router.push(path)}>Skip for now</button>
       </div>
     </div>
   );
