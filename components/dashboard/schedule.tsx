@@ -19,7 +19,7 @@ export default function Schedule({ schedule}: { schedule: ScheduleEvent[]}) {
     return (
         <div className="rounded border">
             <div className="flex items-center justify-between p-3">
-                <h3 className="text-lg font-semibold">Weekley Schedule </h3>
+                <h3 className="text-lg font-semibold">Weekly Schedule </h3>
                 <button onClick={() => router.push("/auth/profile-setup")}>
                     Edit Schedule
                 </button>
