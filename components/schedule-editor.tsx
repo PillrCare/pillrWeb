@@ -74,6 +74,14 @@ function localTimeToUTC(dayOfWeek: number, localTime: string): { day_of_week: nu
   return { day_of_week: utcDayOfWeek, dose_time: utcTime };
 }
 
+// Format 24-hour time to 12-hour with AM/PM
+function formatTimeDisplay(time24: string): string {
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
 export default function ScheduleEditor({ which_user, path = "/dashboard" }: { which_user?: string; path?: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -291,7 +299,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
               {events.map((ev, idx) => ev.day_of_week === d.value && (
                 <div className="p-2 mb-2 bg-background rounded border" key={`${d.value}-${idx}`}>
-                  <div className="m-1">{ev.dose_time}</div>
+                  <div className="m-1">{formatTimeDisplay(ev.dose_time)}</div>
                   <div className="m-1">{ev.description ?? "No description"}</div>
                   <button className="p-2 m-1 bg-destructive rounded border" onClick={() => removeEvent(idx)}>Remove</button>
                 </div>
