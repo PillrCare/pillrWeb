@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { MedicationSearch } from "@/components/medication-search";
+import type { MedicationSearchResult } from "@/lib/medication";
 
 type EventItem = {
   day_of_week: number;
@@ -78,6 +80,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   const [addingDay, setAddingDay] = useState<number | null>(null);
   const [newTime, setNewTime] = useState("");
   const [newDesc, setNewDesc] = useState<string | null>(null);
+  const [medicationSearchValue, setMedicationSearchValue] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   // `userId` is the target user whose schedule we're editing (could be the same).
@@ -142,6 +145,18 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     setAddingDay(day);
     setNewTime("");
     setNewDesc(null);
+    setMedicationSearchValue("");
+  }
+
+  function handleMedicationSelect(medication: MedicationSearchResult) {
+    // When medication is selected, only update the search value
+    // Don't auto-populate description - let user add notes manually if needed
+    setMedicationSearchValue(medication.name);
+  }
+
+  function handleMedicationSearchChange(value: string) {
+    // Update search value as user types
+    setMedicationSearchValue(value);
   }
 
   function confirmAdd() {
@@ -221,13 +236,31 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
                     <label className="pr-2">Time</label>
                     <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
                   </div>
-                  <div className="w-full">
-                    <label>Description (optional)</label>
-                    <input className="w-full p-2 mt-2" value={newDesc ?? ""} onChange={(e) => setNewDesc(e.target.value)} placeholder="e.g., With food, morning" />
+                  <div className="w-full mt-3">
+                    <label className="block mb-2">Medication</label>
+                    <MedicationSearch
+                      value={medicationSearchValue}
+                      onChange={handleMedicationSearchChange}
+                      onSelect={handleMedicationSelect}
+                      placeholder="Search for medication..."
+                      className="w-full"
+                    />
                   </div>
-                  <div>
+                  <div className="w-full mt-3">
+                    <label className="block mb-2">Description (optional)</label>
+                    <input
+                      className="w-full p-2 mt-2"
+                      value={newDesc ?? ""}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      placeholder="Medication name or additional notes (e.g., With food, morning)"
+                    />
+                  </div>
+                  <div className="mt-3">
                     <button className="m-1 p-1 bg-accent rounded border" onClick={confirmAdd}>Add</button>
-                    <button className="m-1 p-1 bg-destructive rounded border" onClick={() => setAddingDay(null)}>Cancel</button>
+                    <button className="m-1 p-1 bg-destructive rounded border" onClick={() => {
+                      setAddingDay(null);
+                      setMedicationSearchValue("");
+                    }}>Cancel</button>
                   </div>
                 </div>
               )}
