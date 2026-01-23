@@ -89,11 +89,12 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   const supabase = useMemo(() => createClient(), []);
 
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [addingDay, setAddingDay] = useState<number | null>(null);
   const [newTime, setNewTime] = useState("");
   const [newDesc, setNewDesc] = useState<string | null>(null);
   const [medicationSearchValue, setMedicationSearchValue] = useState("");
   const [selectedMedication, setSelectedMedication] = useState<MedicationInfo | null>(null);
+  const [isDaily, setIsDaily] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   // `userId` is the target user whose schedule we're editing (could be the same).
@@ -178,14 +179,6 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     // supabase is stable (created with useMemo) so it's safe to include in deps
   }, [router, which_user, supabase]);
 
-  function startAdd(day: number) {
-    setAddingDay(day);
-    setNewTime("");
-    setNewDesc(null);
-    setMedicationSearchValue("");
-    setSelectedMedication(null);
-  }
-
   async function handleMedicationSelect(medication: MedicationSearchResult) {
     // When medication is selected, fetch full medication details from API
     setMedicationSearchValue(medication.name);
@@ -194,7 +187,6 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
       const fullMedicationInfo = await searchMedication(medication.name);
       if (!('message' in fullMedicationInfo)) {
         // Store the full medication info - it will be saved when the event is confirmed
-        // We'll store it temporarily and use it in confirmAdd
         setSelectedMedication(fullMedicationInfo);
       }
     } catch (error) {
@@ -207,23 +199,69 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     setMedicationSearchValue(value);
   }
 
-  function confirmAdd() {
-    if (addingDay === null || !newTime) return;
-    setEvents((s) => [...s, { 
-      day_of_week: addingDay!, 
-      dose_time: newTime, 
+  function handleDayToggle(dayValue: number) {
+    if (selectedDays.includes(dayValue)) {
+      setSelectedDays(selectedDays.filter(d => d !== dayValue));
+    } else {
+      setSelectedDays([...selectedDays, dayValue]);
+    }
+  }
+
+  function handleDailyToggle() {
+    setIsDaily(!isDaily);
+    if (!isDaily) {
+      // When enabling daily, select all days
+      setSelectedDays(DAYS.map(d => d.value));
+    } else {
+      // When disabling daily, clear selections
+      setSelectedDays([]);
+    }
+  }
+
+  function addEvent() {
+    if (!newTime) return;
+    
+    // Determine which days to add the event to
+    const daysToAdd = isDaily ? DAYS.map(d => d.value) : selectedDays;
+    
+    if (daysToAdd.length === 0) {
+      // User needs to select at least one day
+      return;
+    }
+
+    // Create events for each selected day
+    const newEvents = daysToAdd.map(day => ({
+      day_of_week: day,
+      dose_time: newTime,
       description: newDesc,
-      medication: selectedMedication 
-    }]);
-    setAddingDay(null);
+      medication: selectedMedication
+    }));
+
+    setEvents((s) => [...s, ...newEvents]);
+    
+    // Reset form
     setNewTime("");
     setNewDesc(null);
     setMedicationSearchValue("");
     setSelectedMedication(null);
+    setIsDaily(false);
+    setSelectedDays([]);
   }
 
-  function removeEvent(index: number) {
-    setEvents((s) => s.filter((_, i) => i !== index));
+  function removeEvent(dayOfWeek: number, doseTime: string, description: string | null, medicationName: string | null) {
+    setEvents((s) => {
+      // Find and remove the first matching event
+      const index = s.findIndex(e => 
+        e.day_of_week === dayOfWeek &&
+        e.dose_time === doseTime &&
+        e.description === description &&
+        ((e.medication?.name === medicationName) || (e.medicationData?.name === medicationName) || (!e.medication && !e.medicationData && !medicationName))
+      );
+      if (index !== -1) {
+        return s.filter((_, i) => i !== index);
+      }
+      return s;
+    });
   }
 
   async function saveAndContinue() {
@@ -330,101 +368,213 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     return <div>Loading…</div>;
   }
 
+  // Group events by day for display
+  const eventsByDay = DAYS.map(day => ({
+    ...day,
+    events: events
+      .filter(ev => ev.day_of_week === day.value)
+      .sort((a, b) => a.dose_time.localeCompare(b.dose_time))
+  }));
+
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
+    <div className="flex-1 w-full flex flex-col gap-8">
       <h1 className="text-xl font-semibold">Set your medication schedule</h1>
 
-      <div className="text-xs font-mono p-3 bg-accent rounded border">
-        {DAYS.map((d) => (
-          <div key={d.value} className="text-sm m-3 p-3 px-5 rounded-md text-foreground bg-background flex-down gap-3 items-center">
-            <div>
-              <strong>{d.label}</strong>
-              <button className="m-2 p-2 bg-accent rounded border" onClick={() => startAdd(d.value)}>+ Add</button>
-            </div>
+      {/* Add Event Form */}
+      <div className="border rounded p-4 bg-background">
+        <h2 className="text-lg font-semibold mb-4">Add New Event</h2>
+        
+        <div className="flex flex-col gap-4">
+          {/* Time Input */}
+          <div>
+            <label className="block mb-2 font-medium">Time</label>
+            <input
+              type="time"
+              value={newTime}
+              onChange={(e) => setNewTime(e.target.value)}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
 
-            <div className="p-2 bg-accent rounded border">
-              {events.filter((ev) => ev.day_of_week === d.value).length === 0 && <div>No events for {d.label}.</div>}
+          {/* Medication Search */}
+          <div>
+            <label className="block mb-2 font-medium">Medication (optional)</label>
+            <MedicationSearch
+              value={medicationSearchValue}
+              onChange={handleMedicationSearchChange}
+              onSelect={handleMedicationSelect}
+              placeholder="Search for medication..."
+              className="w-full"
+            />
+          </div>
 
-              {events.map((ev, idx) => ev.day_of_week === d.value && (
-                <div className="p-2 mb-2 bg-background rounded border" key={`${d.value}-${idx}`}>
-                  <div className="m-1">{formatTimeDisplay(ev.dose_time)}</div>
-                  {ev.medicationData && (
-                    <div className="m-1 font-semibold">
-                      {ev.medicationData.name}
-                      {ev.medicationData.brand_name && ev.medicationData.brand_name !== ev.medicationData.name && (
-                        <span className="text-sm ml-1">
-                          ({ev.medicationData.brand_name})
-                        </span>
-                      )}
-                      {ev.medicationData.generic_name && ev.medicationData.generic_name !== ev.medicationData.name && (
-                        <span className="text-sm ml-1">
-                          - {ev.medicationData.generic_name}
-                        </span>
-                      )}
-                    </div>
+          {/* Notes/Description */}
+          <div>
+            <label className="block mb-2 font-medium">Notes (optional)</label>
+            <input
+              type="text"
+              value={newDesc ?? ""}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder="Additional notes (e.g., With food, morning)"
+              className="w-full p-2 border rounded"
+            />
+          </div>
+
+          {/* Day Selection */}
+          <div>
+            <label className="block mb-3 font-medium">Apply to:</label>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleDailyToggle}
+                className={`
+                  flex items-center gap-3 cursor-pointer p-3 rounded border transition-all text-left
+                  ${isDaily 
+                    ? 'bg-accent border-2 border-foreground font-semibold' 
+                    : 'hover:bg-accent/50 border'
+                  }
+                `}
+              >
+                <div className={`
+                  w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0
+                  ${isDaily ? 'bg-foreground border-foreground' : 'border-foreground/50'}
+                `}>
+                  {isDaily && (
+                    <svg className="w-3 h-3 text-background" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
                   )}
-                  {ev.medication && !ev.medicationData && (
-                    <div className="m-1 font-semibold">
-                      {ev.medication.name}
-                      {ev.medication.brandName && ev.medication.brandName !== ev.medication.name && (
-                        <span className="text-sm ml-1">
-                          ({ev.medication.brandName})
-                        </span>
-                      )}
-                      {ev.medication.genericName && ev.medication.genericName !== ev.medication.name && (
-                        <span className="text-sm ml-1">
-                          - {ev.medication.genericName}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className="m-1">{ev.description ?? "No description"}</div>
-                  <button className="p-2 m-1 bg-destructive rounded border" onClick={() => removeEvent(idx)}>Remove</button>
                 </div>
-              ))}
-
-              {addingDay === d.value && (
-                <div className="p-2 bg-background rounded border">
-                  <div className="text-lg w-full p-2">
-                    <label className="pr-2">Time</label>
-                    <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
-                  </div>
-                  <div className="w-full mt-3">
-                    <label className="block mb-2">Medication</label>
-                    <MedicationSearch
-                      value={medicationSearchValue}
-                      onChange={handleMedicationSearchChange}
-                      onSelect={handleMedicationSelect}
-                      placeholder="Search for medication..."
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="w-full mt-3">
-                    <label className="block mb-2">Description (optional)</label>
-                    <input
-                      className="w-full p-2 mt-2"
-                      value={newDesc ?? ""}
-                      onChange={(e) => setNewDesc(e.target.value)}
-                      placeholder="Medication name or additional notes (e.g., With food, morning)"
-                    />
-                  </div>
-                  <div className="mt-3">
-                    <button className="m-1 p-1 bg-accent rounded border" onClick={confirmAdd}>Add</button>
-                    <button className="m-1 p-1 bg-destructive rounded border" onClick={() => {
-                      setAddingDay(null);
-                      setMedicationSearchValue("");
-                    }}>Cancel</button>
-                  </div>
+                <span className="font-medium">Daily (all days)</span>
+              </button>
+              
+              {!isDaily && (
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                  {DAYS.map((day) => {
+                    const isSelected = selectedDays.includes(day.value);
+                    return (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => handleDayToggle(day.value)}
+                        className={`
+                          flex items-center gap-3 cursor-pointer p-3 rounded border transition-all
+                          sm:flex-1 sm:min-w-[120px] sm:max-w-[180px]
+                          ${isSelected 
+                            ? 'bg-accent border-2 border-foreground font-semibold shadow-sm' 
+                            : 'hover:bg-accent/50 border hover:border-foreground/50'
+                          }
+                        `}
+                      >
+                        <div className={`
+                          w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0
+                          ${isSelected ? 'bg-foreground border-foreground' : 'border-foreground/50'}
+                        `}>
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-background" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium">{day.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
-        ))}
+
+          {/* Add Button */}
+          <button
+            onClick={addEvent}
+            disabled={!newTime || (!isDaily && selectedDays.length === 0)}
+            className="p-2 bg-accent border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add Event
+          </button>
+        </div>
       </div>
 
+      {/* Current Schedule */}
+      <div className="border rounded p-4 bg-background">
+        <h2 className="text-lg font-semibold mb-4">Current Schedule</h2>
+        
+        {events.length === 0 ? (
+          <div className="text-gray-500">No events scheduled. Add an event above to get started.</div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {eventsByDay.map((dayData) => (
+              dayData.events.length > 0 && (
+                <div key={dayData.value} className="border rounded p-3">
+                  <div className="font-semibold mb-2">{dayData.label}</div>
+                  <div className="flex flex-col gap-2">
+                    {dayData.events.map((ev, idx) => {
+                      const medicationName: string | null = ev.medicationData?.name || ev.medication?.name || null;
+                      return (
+                        <div key={`${dayData.value}-${idx}-${ev.dose_time}`} className="flex items-center justify-between p-2 bg-accent rounded">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="font-medium">{formatTimeDisplay(ev.dose_time)}</div>
+                            {ev.medicationData && (
+                              <div className="font-semibold">
+                                {ev.medicationData.name}
+                                {ev.medicationData.brand_name && ev.medicationData.brand_name !== ev.medicationData.name && (
+                                  <span className="text-sm ml-1">
+                                    ({ev.medicationData.brand_name})
+                                  </span>
+                                )}
+                                {ev.medicationData.generic_name && ev.medicationData.generic_name !== ev.medicationData.name && (
+                                  <span className="text-sm ml-1">
+                                    - {ev.medicationData.generic_name}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {ev.medication && !ev.medicationData && (
+                              <div className="font-semibold">
+                                {ev.medication.name}
+                                {ev.medication.brandName && ev.medication.brandName !== ev.medication.name && (
+                                  <span className="text-sm ml-1">
+                                    ({ev.medication.brandName})
+                                  </span>
+                                )}
+                                {ev.medication.genericName && ev.medication.genericName !== ev.medication.name && (
+                                  <span className="text-sm ml-1">
+                                    - {ev.medication.genericName}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {ev.description && (
+                              <div className="text-sm text-gray-600">{ev.description}</div>
+                            )}
+                          </div>
+                          <button
+                            className="p-1 bg-destructive text-white rounded text-sm"
+                            onClick={() => removeEvent(ev.day_of_week, ev.dose_time, ev.description ?? null, medicationName ?? null)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons */}
       <div className="w-full flex justify-left">
-        <button className="p-2 bg-accent border rounded" onClick={saveAndContinue} disabled={saving}>{saving ? "Saving…" : "Save and Continue"}</button>
-        <button className="p-2 ml-2 bg-destructive border rounded" onClick={() => router.push(path)}>Skip for now</button>
+        <button className="p-2 bg-accent border rounded" onClick={saveAndContinue} disabled={saving}>
+          {saving ? "Saving…" : "Save and Continue"}
+        </button>
+        <button className="p-2 ml-2 bg-destructive border rounded" onClick={() => router.push(path)}>
+          Skip for now
+        </button>
       </div>
     </div>
   );
