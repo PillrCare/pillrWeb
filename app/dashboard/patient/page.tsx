@@ -88,19 +88,30 @@ export default async function DashboardPatient() {
     }
   }
 
+  // Fetch schedule regardless of device status - users should see their schedule
   let schedule: ScheduleEvent[] = [];
-  if (device?.device_id) {
-    const { data: scheduleData, error: scheduleError } = await supabase
-      .from('weekly_events')
-      .select('*')
-      .eq('user_id', userId)
-      .order('dose_time', { ascending: true })
+  const { data: scheduleData, error: scheduleError } = await supabase
+    .from('weekly_events')
+    .select(`
+      *,
+      medications (
+        id,
+        schedule_id,
+        name,
+        brand_name,
+        generic_name,
+        adverse_reactions,
+        drug_interaction
+      )
+    `)
+    .eq('user_id', userId)
+    .order('day_of_week', { ascending: true })
+    .order('dose_time', { ascending: true })
 
-    if (scheduleError) {
-      console.error('Failed to load device_log:', scheduleError);
-    } else if (scheduleData) {
-      schedule = scheduleData;
-    }
+  if (scheduleError) {
+    console.error('Failed to load schedule:', scheduleError);
+  } else if (scheduleData) {
+    schedule = scheduleData;
   }
 
   // Pass all device logs; client will interpret in local timezone
