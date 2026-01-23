@@ -7,11 +7,23 @@ import { MedicationSearch } from "@/components/medication-search";
 import type { MedicationSearchResult, MedicationInfo } from "@/lib/medication";
 import { searchMedication } from "@/lib/medication";
 
+type MedicationData = {
+  id: string;
+  schedule_id: string;
+  name: string;
+  brand_name?: string | null;
+  generic_name?: string | null;
+  adverse_reactions?: string | null;
+  drug_interaction?: string | null;
+};
+
 type EventItem = {
+  id?: string;
   day_of_week: number;
   dose_time: string;
   description?: string | null;
   medication?: MedicationInfo | null;
+  medicationData?: MedicationData | null;
 };
 
 const DAYS = [
@@ -25,53 +37,43 @@ const DAYS = [
 ];
 
 // Convert UTC time to local timezone
+// Note: day_of_week is NOT converted - it represents the conceptual day (Mon=1, Sun=7)
+// Only the time is converted from UTC to local
 function utcTimeToLocal(dayOfWeek: number, utcTime: string): { day_of_week: number; dose_time: string } {
   const [hours, minutes] = utcTime.split(':').map(Number);
   
-  // Create a Date object with the UTC time (using a reference date)
+  // Create a Date object with today's date and the UTC time
   const date = new Date();
-  const currentDay = date.getUTCDay(); // 0 = Sunday
-  const targetUTCDay = dayOfWeek === 7 ? 0 : dayOfWeek;
-  let daysOffset = targetUTCDay - currentDay;
-  if (daysOffset < 0) daysOffset += 7;
-  
-  date.setUTCDate(date.getUTCDate() + daysOffset);
   date.setUTCHours(hours, minutes, 0, 0);
   
   // Get the local time from this UTC date
   const localHours = date.getHours();
   const localMinutes = date.getMinutes();
-  const localDay = date.getDay(); // 0 = Sunday
-  const localDayOfWeek = localDay === 0 ? 7 : localDay;
   
   const localTime = `${String(localHours).padStart(2, '0')}:${String(localMinutes).padStart(2, '0')}`;
   
-  return { day_of_week: localDayOfWeek, dose_time: localTime };
+  // day_of_week stays the same - it's a conceptual day, not a date
+  return { day_of_week: dayOfWeek, dose_time: localTime };
 }
 
 // Convert local time to UTC
+// Note: day_of_week is NOT converted - it represents the conceptual day (Mon=1, Sun=7)
+// Only the time is converted from local to UTC
 function localTimeToUTC(dayOfWeek: number, localTime: string): { day_of_week: number; dose_time: string } {
   const [hours, minutes] = localTime.split(':').map(Number);
   
-  // Create a Date object with the local time
+  // Create a Date object with today's date and the local time
   const date = new Date();
-  const currentDay = date.getDay();
-  const targetLocalDay = dayOfWeek === 7 ? 0 : dayOfWeek;
-  let daysOffset = targetLocalDay - currentDay;
-  if (daysOffset < 0) daysOffset += 7;
-  
-  date.setDate(date.getDate() + daysOffset);
   date.setHours(hours, minutes, 0, 0);
   
   // Get the UTC time
   const utcHours = date.getUTCHours();
   const utcMinutes = date.getUTCMinutes();
-  const utcDay = date.getUTCDay();
-  const utcDayOfWeek = utcDay === 0 ? 7 : utcDay;
   
   const utcTime = `${String(utcHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}`;
   
-  return { day_of_week: utcDayOfWeek, dose_time: utcTime };
+  // day_of_week stays the same - it's a conceptual day, not a date
+  return { day_of_week: dayOfWeek, dose_time: utcTime };
 }
 
 // Format 24-hour time to 12-hour with AM/PM
@@ -117,7 +119,21 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
       const { data: rows, error } = await supabase
         .from("weekly_events")
-        .select("day_of_week, dose_time, description")
+        .select(`
+          id,
+          day_of_week, 
+          dose_time, 
+          description,
+          medications (
+            id,
+            schedule_id,
+            name,
+            brand_name,
+            generic_name,
+            adverse_reactions,
+            drug_interaction
+          )
+        `)
         .eq("user_id", targetId)
         .order("day_of_week", { ascending: true })
         .order("dose_time", { ascending: true });
@@ -125,17 +141,27 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
       if (!error && rows) {
         const mapped = rows.map((r: unknown) => {
           const row = r as {
+            id: string;
             day_of_week: number;
             dose_time: string | number | null;
             description?: string | null;
+            medications?: MedicationData[] | null;
           };
           const utcTime = typeof row.dose_time === "string" ? row.dose_time : String(row.dose_time);
           // Convert from UTC to local timezone
           const localEvent = utcTimeToLocal(row.day_of_week, utcTime);
+          
+          // Get medication data if it exists (medications is an array from the join)
+          const medicationData = row.medications && row.medications.length > 0 
+            ? row.medications[0] 
+            : null;
+          
           return {
+            id: row.id,
             day_of_week: localEvent.day_of_week,
             dose_time: localEvent.dose_time,
             description: row.description ?? null,
+            medicationData: medicationData,
           };
         });
         setEvents(mapped);
@@ -232,29 +258,51 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
         }
 
         // Now insert medications for events that have medication info
+        // Note: Since we delete all events and re-insert, medications are cascade deleted,
+        // so we only need to insert medications for events that have them (either new or preserved)
         const medicationsToInsert = [];
+        
         for (let i = 0; i < events.length; i++) {
           const event = events[i];
-          if (event.medication && insertedEvents && insertedEvents[i]) {
-            const medication = event.medication;
+          if (insertedEvents && insertedEvents[i]) {
+            // Use medication from event.medication (newly selected) or reconstruct from medicationData (preserved)
+            let medicationToSave: MedicationInfo | null = null;
             
-            // Convert arrays to text for database storage
-            const adverseReactionsText = medication.sideEffects && medication.sideEffects.length > 0
-              ? medication.sideEffects.join('\n\n')
-              : null;
+            if (event.medication) {
+              // New medication selected
+              medicationToSave = event.medication;
+            } else if (event.medicationData) {
+              // Preserve existing medication - reconstruct MedicationInfo from MedicationData
+              medicationToSave = {
+                name: event.medicationData.name,
+                brandName: event.medicationData.brand_name || undefined,
+                genericName: event.medicationData.generic_name || undefined,
+                sideEffects: event.medicationData.adverse_reactions 
+                  ? event.medicationData.adverse_reactions.split('\n\n').filter(s => s.trim())
+                  : undefined,
+                drugInteractions: event.medicationData.drug_interaction
+                  ? event.medicationData.drug_interaction.split('\n\n').filter(s => s.trim())
+                  : undefined,
+              };
+            }
             
-            const drugInteractionText = medication.drugInteractions && medication.drugInteractions.length > 0
-              ? medication.drugInteractions.join('\n\n')
-              : null;
+            if (medicationToSave) {
+              const adverseReactionsText = medicationToSave.sideEffects && medicationToSave.sideEffects.length > 0
+                ? medicationToSave.sideEffects.join('\n\n')
+                : null;
+              const drugInteractionText = medicationToSave.drugInteractions && medicationToSave.drugInteractions.length > 0
+                ? medicationToSave.drugInteractions.join('\n\n')
+                : null;
 
-            medicationsToInsert.push({
-              schedule_id: insertedEvents[i].id,
-              name: medication.name,
-              brand_name: medication.brandName || null,
-              generic_name: medication.genericName || null,
-              adverse_reactions: adverseReactionsText,
-              drug_interaction: drugInteractionText,
-            });
+              medicationsToInsert.push({
+                schedule_id: insertedEvents[i].id,
+                name: medicationToSave.name,
+                brand_name: medicationToSave.brandName || null,
+                generic_name: medicationToSave.genericName || null,
+                adverse_reactions: adverseReactionsText,
+                drug_interaction: drugInteractionText,
+              });
+            }
           }
         }
 
@@ -300,6 +348,36 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
               {events.map((ev, idx) => ev.day_of_week === d.value && (
                 <div className="p-2 mb-2 bg-background rounded border" key={`${d.value}-${idx}`}>
                   <div className="m-1">{formatTimeDisplay(ev.dose_time)}</div>
+                  {ev.medicationData && (
+                    <div className="m-1 font-semibold">
+                      {ev.medicationData.name}
+                      {ev.medicationData.brand_name && ev.medicationData.brand_name !== ev.medicationData.name && (
+                        <span className="text-sm ml-1">
+                          ({ev.medicationData.brand_name})
+                        </span>
+                      )}
+                      {ev.medicationData.generic_name && ev.medicationData.generic_name !== ev.medicationData.name && (
+                        <span className="text-sm ml-1">
+                          - {ev.medicationData.generic_name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {ev.medication && !ev.medicationData && (
+                    <div className="m-1 font-semibold">
+                      {ev.medication.name}
+                      {ev.medication.brandName && ev.medication.brandName !== ev.medication.name && (
+                        <span className="text-sm ml-1">
+                          ({ev.medication.brandName})
+                        </span>
+                      )}
+                      {ev.medication.genericName && ev.medication.genericName !== ev.medication.name && (
+                        <span className="text-sm ml-1">
+                          - {ev.medication.genericName}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="m-1">{ev.description ?? "No description"}</div>
                   <button className="p-2 m-1 bg-destructive rounded border" onClick={() => removeEvent(idx)}>Remove</button>
                 </div>

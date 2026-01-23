@@ -183,11 +183,22 @@ export default function PatientView() {
                     if (mounted) setPatientStats(null);
                 }
 
-                // Load weekly schedule
+                // Load weekly schedule with medications
                 try {
                     const { data: scheduleData } = await supabase
                         .from('weekly_events')
-                        .select('*')
+                        .select(`
+                            *,
+                            medications (
+                                id,
+                                schedule_id,
+                                name,
+                                brand_name,
+                                generic_name,
+                                adverse_reactions,
+                                drug_interaction
+                            )
+                        `)
                         .eq('user_id', openPatientId)
                         .order('dose_time', { ascending: true });
                     if (mounted) setSchedule(scheduleData ?? []);
