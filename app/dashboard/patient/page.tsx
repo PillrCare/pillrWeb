@@ -10,6 +10,7 @@ import Schedule from "@/components/dashboard/schedule";
 import type { Tables } from '@/lib/types';
 import TodaysSchedule from "@/components/dashboard/todays-schedule";
 import EmergencyUnlockButton from "@/components/dashboard/emergency-unlock-button";
+import DeviceSetupBanner from "@/components/dashboard/device-setup-banner";
 
 type DeviceLogRow = Tables<"device_log">;
 type ScheduleEvent = Tables<"weekly_events">;
@@ -134,6 +135,12 @@ export default async function DashboardPatient() {
 
         </div>
       </div>
+
+      {!device && (
+        <div>
+          <DeviceSetupBanner />
+        </div>
+      )}
 
       <div>
         <UserStats patientStats={patientStats} />

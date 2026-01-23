@@ -27,7 +27,8 @@ export default function WifiSetup({ path = "/dashboard" }: { path?: string }) {
               "On your phone, go to WiFi settings and connect to 'Pillr-Cadence'",
               "Click 'Sign Into Network' to open the configuration page",
               "Enter your home WiFi name and password",
-              "The device will automatically connect to your network"
+              "The device will automatically connect to your network",
+	      "Scan the QR code on your device to connect it to your account"
             ].map((instruction, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-medium">
