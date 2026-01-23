@@ -4,12 +4,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { MedicationSearch } from "@/components/medication-search";
-import type { MedicationSearchResult } from "@/lib/medication";
+import type { MedicationSearchResult, MedicationInfo } from "@/lib/medication";
+import { searchMedication } from "@/lib/medication";
 
 type EventItem = {
   day_of_week: number;
   dose_time: string;
   description?: string | null;
+  medication?: MedicationInfo | null;
 };
 
 const DAYS = [
@@ -81,6 +83,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   const [newTime, setNewTime] = useState("");
   const [newDesc, setNewDesc] = useState<string | null>(null);
   const [medicationSearchValue, setMedicationSearchValue] = useState("");
+  const [selectedMedication, setSelectedMedication] = useState<MedicationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   // `userId` is the target user whose schedule we're editing (could be the same).
@@ -146,12 +149,23 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     setNewTime("");
     setNewDesc(null);
     setMedicationSearchValue("");
+    setSelectedMedication(null);
   }
 
-  function handleMedicationSelect(medication: MedicationSearchResult) {
-    // When medication is selected, only update the search value
-    // Don't auto-populate description - let user add notes manually if needed
+  async function handleMedicationSelect(medication: MedicationSearchResult) {
+    // When medication is selected, fetch full medication details from API
     setMedicationSearchValue(medication.name);
+    
+    try {
+      const fullMedicationInfo = await searchMedication(medication.name);
+      if (!('message' in fullMedicationInfo)) {
+        // Store the full medication info - it will be saved when the event is confirmed
+        // We'll store it temporarily and use it in confirmAdd
+        setSelectedMedication(fullMedicationInfo);
+      }
+    } catch (error) {
+      console.error('Failed to fetch medication details:', error);
+    }
   }
 
   function handleMedicationSearchChange(value: string) {
@@ -161,10 +175,17 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
   function confirmAdd() {
     if (addingDay === null || !newTime) return;
-    setEvents((s) => [...s, { day_of_week: addingDay!, dose_time: newTime, description: newDesc }]);
+    setEvents((s) => [...s, { 
+      day_of_week: addingDay!, 
+      dose_time: newTime, 
+      description: newDesc,
+      medication: selectedMedication 
+    }]);
     setAddingDay(null);
     setNewTime("");
     setNewDesc(null);
+    setMedicationSearchValue("");
+    setSelectedMedication(null);
   }
 
   function removeEvent(index: number) {
@@ -191,8 +212,54 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
       });
 
       if (payload.length > 0) {
-        const { error: insertError } = await supabase.from("weekly_events").insert(payload);
-        if (insertError) console.error("insert error", insertError);
+        // Insert events and get back the IDs
+        const { data: insertedEvents, error: insertError } = await supabase
+          .from("weekly_events")
+          .insert(payload)
+          .select("id");
+
+        if (insertError) {
+          console.error("insert error", insertError);
+          return;
+        }
+
+        // Now insert medications for events that have medication info
+        const medicationsToInsert = [];
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i];
+          if (event.medication && insertedEvents && insertedEvents[i]) {
+            const medication = event.medication;
+            
+            // Convert arrays to text for database storage
+            const adverseReactionsText = medication.sideEffects && medication.sideEffects.length > 0
+              ? medication.sideEffects.join('\n\n')
+              : null;
+            
+            const drugInteractionText = medication.drugInteractions && medication.drugInteractions.length > 0
+              ? medication.drugInteractions.join('\n\n')
+              : null;
+
+            medicationsToInsert.push({
+              schedule_id: insertedEvents[i].id,
+              name: medication.name,
+              brand_name: medication.brandName || null,
+              generic_name: medication.genericName || null,
+              adverse_reactions: adverseReactionsText,
+              drug_interaction: drugInteractionText,
+            });
+          }
+        }
+
+        // Insert medications if any
+        if (medicationsToInsert.length > 0) {
+          const { error: medicationError } = await supabase
+            .from("medications")
+            .insert(medicationsToInsert);
+          
+          if (medicationError) {
+            console.error("medication insert error", medicationError);
+          }
+        }
       }
 
       console.log("saved events", payload);

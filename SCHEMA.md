@@ -104,3 +104,52 @@ CREATE TABLE public.weekly_events (
   CONSTRAINT weekly_events_pkey PRIMARY KEY (id),
   CONSTRAINT weekly_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.medications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  schedule_id uuid NOT NULL,
+  name text NOT NULL,
+  brand_name text,
+  generic_name text,
+  adverse_reactions text,
+  drug_interaction text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT medications_pkey PRIMARY KEY (id),
+  CONSTRAINT medications_schedule_id_fkey FOREIGN KEY (schedule_id) REFERENCES public.weekly_events(id) ON DELETE CASCADE
+);
+CREATE INDEX medications_schedule_id_idx ON public.medications USING btree (schedule_id);
+ALTER TABLE public.medications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own medications" ON public.medications FOR SELECT TO authenticated USING (
+  schedule_id IN (
+    SELECT id
+    FROM public.weekly_events
+    WHERE user_id = (SELECT auth.uid())
+  )
+);
+CREATE POLICY "Users can insert medications for their schedules" ON public.medications FOR INSERT TO authenticated WITH CHECK (
+  schedule_id IN (
+    SELECT id
+    FROM public.weekly_events
+    WHERE user_id = (SELECT auth.uid())
+  )
+);
+CREATE POLICY "Users can update their own medications" ON public.medications FOR UPDATE TO authenticated USING (
+  schedule_id IN (
+    SELECT id
+    FROM public.weekly_events
+    WHERE user_id = (SELECT auth.uid())
+  )
+) WITH CHECK (
+  schedule_id IN (
+    SELECT id
+    FROM public.weekly_events
+    WHERE user_id = (SELECT auth.uid())
+  )
+);
+CREATE POLICY "Users can delete their own medications" ON public.medications FOR DELETE TO authenticated USING (
+  schedule_id IN (
+    SELECT id
+    FROM public.weekly_events
+    WHERE user_id = (SELECT auth.uid())
+  )
+);
