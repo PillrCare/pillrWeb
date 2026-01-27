@@ -47,14 +47,14 @@ export default function AdminDashboard() {
         // Fetch active caregivers
         const { data: caregivers } = await supabase
           .from("profiles")
-          .select("id, username")
+          .select("*")
           .eq("user_type", "caregiver")
           .eq("agency_id", profile?.agency_id);
 
         // Fetch all patients
         const { data: patientList } = await supabase
           .from("profiles")
-          .select("id, username")
+          .select("*")
           .eq("user_type", "patient")
           .eq("agency_id", profile?.agency_id);
 
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
     ...(distribution.poor > 0 ? [{ label: "Below 70%", value: distribution.poor, color: "#991b1b", labelColor: "text-red-700" }] : []),
   ];
 
-  const activity: { id: string; type: string; timestamp: string }[] = [];
+  const activity: { device: string; action: string; time: string }[] = [];
 
   if (loading) {
     return <div>Loading…</div>;
