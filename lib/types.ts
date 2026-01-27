@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       agencies: {
@@ -87,8 +62,22 @@ export type Database = {
             foreignKeyName: "fk_caregiver_profile"
             columns: ["caregiver_id"]
             isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "fk_caregiver_profile"
+            columns: ["caregiver_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_patient_profile"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
           },
           {
             foreignKeyName: "fk_patient_profile"
@@ -126,6 +115,13 @@ export type Database = {
             foreignKeyName: "connection_codes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "connection_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -143,7 +139,7 @@ export type Database = {
         }
         Insert: {
           clear?: boolean
-          command_id?: number
+          command_id?: never
           created_at?: string
           device_id: string
           emergency_unlock?: boolean
@@ -152,7 +148,7 @@ export type Database = {
         }
         Update: {
           clear?: boolean
-          command_id?: number
+          command_id?: never
           created_at?: string
           device_id?: string
           emergency_unlock?: boolean
@@ -160,6 +156,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "device_commands_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
+          },
           {
             foreignKeyName: "device_commands_user_id_fkey"
             columns: ["user_id"]
@@ -177,6 +180,7 @@ export type Database = {
           enroll_event: boolean | null
           enroll_id: number | null
           enroll_success: boolean | null
+          event_schedule_id: string | null
           id: number
           is_in_window: boolean | null
           search_event: boolean | null
@@ -198,6 +202,7 @@ export type Database = {
           enroll_event?: boolean | null
           enroll_id?: number | null
           enroll_success?: boolean | null
+          event_schedule_id?: string | null
           id?: number
           is_in_window?: boolean | null
           search_event?: boolean | null
@@ -219,6 +224,7 @@ export type Database = {
           enroll_event?: boolean | null
           enroll_id?: number | null
           enroll_success?: boolean | null
+          event_schedule_id?: string | null
           id?: number
           is_in_window?: boolean | null
           search_event?: boolean | null
@@ -233,7 +239,59 @@ export type Database = {
           total_searches?: number | null
           weight?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_device_log_schedule"
+            columns: ["event_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medications: {
+        Row: {
+          adverse_reactions: string | null
+          brand_name: string | null
+          created_at: string
+          drug_interaction: string | null
+          generic_name: string | null
+          id: string
+          name: string
+          schedule_id: string
+          updated_at: string
+        }
+        Insert: {
+          adverse_reactions?: string | null
+          brand_name?: string | null
+          created_at?: string
+          drug_interaction?: string | null
+          generic_name?: string | null
+          id?: string
+          name: string
+          schedule_id: string
+          updated_at?: string
+        }
+        Update: {
+          adverse_reactions?: string | null
+          brand_name?: string | null
+          created_at?: string
+          drug_interaction?: string | null
+          generic_name?: string | null
+          id?: string
+          name?: string
+          schedule_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medications_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       next_event: {
         Row: {
@@ -271,6 +329,13 @@ export type Database = {
             foreignKeyName: "fk_next_event_device"
             columns: ["device_id"]
             isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["device_id"]
+          },
+          {
+            foreignKeyName: "fk_next_event_device"
+            columns: ["device_id"]
+            isOneToOne: false
             referencedRelation: "user_device"
             referencedColumns: ["device_id"]
           },
@@ -280,6 +345,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "weekly_events"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_next_event_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
           },
           {
             foreignKeyName: "fk_next_event_user"
@@ -325,6 +397,89 @@ export type Database = {
           },
         ]
       }
+      scheduled_dose_events: {
+        Row: {
+          actual_timestamp_utc: string | null
+          created_at: string
+          day_of_week: number
+          device_log_id: number | null
+          expected_date: string
+          expected_time_utc: string
+          expected_timestamp_utc: string
+          id: string
+          schedule_id: string
+          status: string
+          updated_at: string
+          user_id: string
+          window_end_utc: string
+          window_minutes: number
+          window_start_utc: string
+        }
+        Insert: {
+          actual_timestamp_utc?: string | null
+          created_at?: string
+          day_of_week: number
+          device_log_id?: number | null
+          expected_date: string
+          expected_time_utc: string
+          expected_timestamp_utc: string
+          id?: string
+          schedule_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          window_end_utc: string
+          window_minutes?: number
+          window_start_utc: string
+        }
+        Update: {
+          actual_timestamp_utc?: string | null
+          created_at?: string
+          day_of_week?: number
+          device_log_id?: number | null
+          expected_date?: string
+          expected_time_utc?: string
+          expected_timestamp_utc?: string
+          id?: string
+          schedule_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          window_end_utc?: string
+          window_minutes?: number
+          window_start_utc?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_dose_events_device_log_id_fkey"
+            columns: ["device_log_id"]
+            isOneToOne: false
+            referencedRelation: "device_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_dose_events_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_dose_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "scheduled_dose_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_device: {
         Row: {
           assigned_date: string
@@ -348,6 +503,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "user_device_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
+          },
           {
             foreignKeyName: "user_device_user_id_fkey"
             columns: ["user_id"]
@@ -390,6 +552,13 @@ export type Database = {
             foreignKeyName: "weekly_events_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
+          },
+          {
+            foreignKeyName: "weekly_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -405,9 +574,11 @@ export type Database = {
           caregiver_id: string | null
           device_id: string | null
           emercency_accesses: number | null
+          emergency_dose_count: number | null
           emergency_intervention_rate_pct: number | null
           failed_enrolls: number | null
           failed_searches: number | null
+          late_count: number | null
           late_doses_pct: number | null
           missed_doses: number | null
           on_time_adherence_pct: number | null
@@ -417,6 +588,7 @@ export type Database = {
           search_success_rate_pct: number | null
           total_enrolled_fingers: number | null
           total_events: number | null
+          total_expected_doses: number | null
           total_opens: number | null
           total_search_events: number | null
         }
@@ -425,12 +597,12 @@ export type Database = {
             foreignKeyName: "fk_caregiver_profile"
             columns: ["caregiver_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: "patient_stats"
+            referencedColumns: ["patient_id"]
           },
           {
-            foreignKeyName: "user_device_user_id_fkey"
-            columns: ["patient_id"]
+            foreignKeyName: "fk_caregiver_profile"
+            columns: ["caregiver_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -440,6 +612,11 @@ export type Database = {
     }
     Functions: {
       _get_agency_for_id: { Args: { _user_id: string }; Returns: string }
+      _target_device_id: { Args: never; Returns: string }
+      backfill_scheduled_dose_events: {
+        Args: { p_days_back?: number }
+        Returns: number
+      }
       connect_with_code: { Args: { input_code: string }; Returns: Json }
       convert_local_to_utc: {
         Args: { p_date: string; p_time: string; p_tz: string }
@@ -451,6 +628,10 @@ export type Database = {
           generated_code: string
           generated_expiry: string
         }[]
+      }
+      generate_scheduled_dose_events: {
+        Args: { p_date?: string; p_lookahead_days?: number }
+        Returns: number
       }
       get_agency_id: { Args: never; Returns: string }
       get_patient_from_device: {
@@ -471,6 +652,11 @@ export type Database = {
         }
       }
       is_caregiver_for: { Args: { patient: string }; Returns: boolean }
+      mark_missed_doses: { Args: never; Returns: number }
+      sync_next_event_for_device: {
+        Args: { p_device_id: string }
+        Returns: undefined
+      }
       upsert_device_command: {
         Args: {
           p_clear: boolean
@@ -618,9 +804,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       user_role: ["patient", "caregiver", "admin"],
