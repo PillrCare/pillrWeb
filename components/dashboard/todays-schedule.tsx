@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { Tables } from "@/lib/types";
 import { convertUtcDoseTimeToLocal, getLocalDateFromUtcDoseTime } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 type MedicationData = {
   id: string;
@@ -18,51 +20,72 @@ type ScheduleEvent = Tables<"weekly_events"> & {
 };
 type DeviceLogRow = Tables<"device_log">;
 
+type ScheduledDoseEvent = {
+  schedule_id: string;
+  expected_date: string;
+  status: 'pending' | 'taken_on_time' | 'taken_late' | 'missed' | 'emergency_access';
+  actual_timestamp_utc: string | null;
+};
+
 export default function TodaysSchedule({ schedule, deviceLog }: { schedule: ScheduleEvent[], deviceLog: DeviceLogRow[] }) {
+    const [scheduledDoses, setScheduledDoses] = useState<ScheduledDoseEvent[]>([]);
 
     const today: Date = new Date();
     const jsDay: number = today.getDay(); // JavaScript: 0=Sunday, 1=Monday, ..., 6=Saturday
     const days: string[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayName: string = days[jsDay];
-    
+
     // Convert to schema format: Monday=1, Tuesday=2, ..., Sunday=7
     // JavaScript: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
     // Schema:     7=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
     const schemaDay = jsDay === 0 ? 7 : jsDay;
-    
+
     // Filter events for today
     const todaysEvents = schedule.filter(row => row.day_of_week === schemaDay);
 
-    // Determine the status color of an event, interpreting dose_time as UTC time-of-day
-    const getEventStatus = (utcDoseTime: string): string => {
-        const now = new Date();
-        // Convert UTC dose time to a local Date object for today
-        const eventTime = getLocalDateFromUtcDoseTime(utcDoseTime);
+    // Fetch scheduled dose events on mount
+    useEffect(() => {
+        const supabase = createClient();
+        const fetchScheduledDoses = async () => {
+            const todayDate = new Date().toISOString().split('T')[0];
+            const { data } = await supabase
+                .from('scheduled_dose_events')
+                .select('schedule_id, expected_date, status, actual_timestamp_utc')
+                .eq('expected_date', todayDate);
 
-        // If event is in the future, return grey
-        if (eventTime > now) {
+            if (data) {
+                setScheduledDoses(data as ScheduledDoseEvent[]);
+            }
+        };
+
+        fetchScheduledDoses();
+    }, []);
+
+    // Determine the status color based on scheduled_dose_events
+    const getEventStatus = (scheduleId: string): string => {
+        const today = new Date().toISOString().split('T')[0];
+        const dose = scheduledDoses.find(
+            d => d.schedule_id === scheduleId && d.expected_date === today
+        );
+
+        if (!dose) {
+            // No data yet - fallback to grey
             return 'bg-gray-200 dark:bg-gray-700';
         }
 
-        // Check if there's a log within 2 hours of the event time
-        const twoHoursAfterEvent = new Date(eventTime.getTime() + 2 * 60 * 60 * 1000);
-        const hasRecentLog = deviceLog.some(log => {
-            const logTime = new Date(log.time_stamp);
-            return logTime >= eventTime && logTime <= twoHoursAfterEvent;
-        });
-
-        if (hasRecentLog) {
-            return 'bg-green-200 dark:bg-green-800';
+        switch (dose.status) {
+            case 'taken_on_time':
+                return 'bg-green-200 dark:bg-green-800';
+            case 'taken_late':
+                return 'bg-yellow-200 dark:bg-yellow-800';
+            case 'missed':
+                return 'bg-red-200 dark:bg-red-800';
+            case 'emergency_access':
+                return 'bg-purple-200 dark:bg-purple-800';
+            case 'pending':
+            default:
+                return 'bg-gray-200 dark:bg-gray-700';
         }
-
-        // Check if it's been more than 2 hours since the event
-        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-        if (eventTime < twoHoursAgo) {
-            return 'bg-red-200 dark:bg-red-800';
-        }
-
-        // Within 2 hours after event but no log yet
-        return 'bg-red-200 dark:bg-red-800';
     };
 
     // const events: ScheduleEvent = schedule.filter(row => row.day_of_week === day);
@@ -80,7 +103,7 @@ export default function TodaysSchedule({ schedule, deviceLog }: { schedule: Sche
                     todaysEvents.map((row) => {
                         const medication = row.medications && row.medications.length > 0 ? row.medications[0] : null;
                         return (
-                            <div key={row.id} className={`flex-row justify-between border rounded p-2 m-2 ${getEventStatus(row.dose_time)}`}>
+                            <div key={row.id} className={`flex-row justify-between border rounded p-2 m-2 ${getEventStatus(row.id)}`}>
                                 <div>
                                     {convertUtcDoseTimeToLocal(row.dose_time)}
                                 </div>
