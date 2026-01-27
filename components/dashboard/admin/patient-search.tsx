@@ -18,12 +18,13 @@ type Props = {
   caregivers?: Caregiver[];
   caregiver_patient?: CaregiverPatient[];
   onSelectUser?: (userId: string) => void;
+  showRoleFilters?: boolean; // optional, default true for backward compatibility
 };
 
-export function PatientSearch({ profiles, agencyId, onSelectUser }: Props) {
+export function PatientSearch({ profiles, agencyId, onSelectUser, showRoleFilters = true }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   type RoleFilter = "all" | "patient" | "caregiver" | "admin" | null;
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>(null);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>(showRoleFilters ? null : "patient");
 
   // Restrict to agency client-side (RLS should also enforce on server)
   const inAgency = useMemo(() => {
@@ -67,20 +68,22 @@ export function PatientSearch({ profiles, agencyId, onSelectUser }: Props) {
         />
       </div>
 
-      <div className="flex gap-2">
-        <Button variant={roleFilter === "all" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("all")}>
-          All <Badge variant="outline" className="ml-1">{counts.all}</Badge>
-        </Button>
-        <Button variant={roleFilter === "patient" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("patient")}>
-          Patients <Badge variant="outline" className="ml-1">{counts.patient}</Badge>
-        </Button>
-        <Button variant={roleFilter === "caregiver" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("caregiver")}>
-          Caregivers <Badge variant="outline" className="ml-1">{counts.caregiver}</Badge>
-        </Button>
-        <Button variant={roleFilter === "admin" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("admin")}>
-          Admins <Badge variant="outline" className="ml-1">{counts.admin}</Badge>
-        </Button>
-      </div>
+      {showRoleFilters && (
+        <div className="flex gap-2">
+          <Button variant={roleFilter === "all" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("all")}>
+            All <Badge variant="outline" className="ml-1">{counts.all}</Badge>
+          </Button>
+          <Button variant={roleFilter === "patient" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("patient")}>
+            Patients <Badge variant="outline" className="ml-1">{counts.patient}</Badge>
+          </Button>
+          <Button variant={roleFilter === "caregiver" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("caregiver")}>
+            Caregivers <Badge variant="outline" className="ml-1">{counts.caregiver}</Badge>
+          </Button>
+          <Button variant={roleFilter === "admin" ? "secondary" : "outline"} size="sm" onClick={() => setRoleFilter("admin")}>
+            Admins <Badge variant="outline" className="ml-1">{counts.admin}</Badge>
+          </Button>
+        </div>
+      )}
 
         {roleFilter === null ? (
             <div></div>

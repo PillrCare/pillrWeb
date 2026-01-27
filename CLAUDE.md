@@ -48,7 +48,7 @@ Dashboard redirects are handled in `app/dashboard/page.tsx` based on user type.
 
 ### Key Database Tables
 
-See `SCHEMA.md` for full schema. Important tables:
+See supabase mtc server for full schema. Important tables:
 - `profiles` - User data with `user_type` and `agency_id`
 - `weekly_events` - Medication schedule (day, dose_time, description)
 - `device_commands` - Commands sent to IoT devices (enroll, emergency_unlock, clear)
