@@ -1,4 +1,5 @@
 import { NullProvider } from './null-provider';
+import { SurgeProvider } from './surge-provider';
 import type { SMSProvider } from './types';
 
 /**
@@ -17,6 +18,8 @@ export function getSMSProvider(): SMSProvider {
     case 'null':
     default:
       return new NullProvider();
+    case 'surge':
+      return new SurgeProvider();
     // Add your provider here:
     // case 'your-provider':
     //   return new YourProvider();
