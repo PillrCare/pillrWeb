@@ -1,17 +1,33 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getSMSProvider } from '@/lib/sms';
 import { shouldSendReminder, formatReminderMessage } from '@/lib/sms/reminder-utils';
-import { getSchemaDayOfWeekForDate } from '@/lib/utils';
+import { getSchemaDayOfWeekForDate, convertUtcDoseTimeToLocal } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 /**
  * API route to check for upcoming medications and send SMS reminders
- * Should be called by a cron job every 5 minutes
+ * Called by Vercel Cron Job every 5 minutes
+ * 
+ * Vercel Cron Configuration (vercel.json):
+ * {
+ *   "crons": [{
+ *     "path": "/api/sms/send-reminders",
+ *     "schedule": "*\/5 * * * *"
+ *   }]
+ * }
+ * 
+ * Environment Variables Required:
+ * - SUPABASE_SERVICE_ROLE_KEY (for admin database access)
+ * - CRON_SECRET (optional, for authentication)
+ * - SMS_PROVIDER (optional, defaults to 'null')
+ *
  */
-export async function POST(request: Request) {
-  // Optional: Add authentication/authorization check
+
+
+ export async function GET(request: Request) {
+  // Verify this is a cron request from Vercel (optional security)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
   
@@ -19,7 +35,8 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  // Use admin client for cron jobs (bypasses RLS, no cookies needed)
+  const supabase = createAdminClient();
   const smsProvider = getSMSProvider();
   
   const now = new Date();
@@ -98,13 +115,8 @@ export async function POST(request: Request) {
     
     const medicationName = medication?.name || 'your medication';
     
-    // Convert UTC time to local for display
-    const [hours, minutes] = event.dose_time.split(':').map(Number);
-    const utcDate = new Date();
-    utcDate.setUTCHours(hours, minutes, 0, 0);
-    const localHours = utcDate.getHours();
-    const localMinutes = utcDate.getMinutes();
-    const localTime = `${String(localHours).padStart(2, '0')}:${String(localMinutes).padStart(2, '0')}`;
+    // Convert UTC time to local timezone for display
+    const localTime = convertUtcDoseTimeToLocal(event.dose_time);
 
     // Format message
     const message = formatReminderMessage(
@@ -127,7 +139,7 @@ export async function POST(request: Request) {
         user_id: event.user_id,
         reminder_date: today,
         message_sent: message,
-        twilio_message_id: smsResult.messageId,
+        provider_message_id: smsResult.messageId,
         sent_at: new Date().toISOString(),
       });
 

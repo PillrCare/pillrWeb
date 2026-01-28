@@ -1,3 +1,15 @@
+/**
+ * EXAMPLE: Twilio SMS Provider Implementation
+ * 
+ * This file serves as an example of how to implement an SMS provider.
+ * To use Twilio:
+ * 1. Install: npm install twilio
+ * 2. Rename this file to twilio-provider.ts
+ * 3. Update lib/sms/index.ts to import and use TwilioProvider
+ * 4. Set SMS_PROVIDER=twilio environment variable
+ * 5. Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+ */
+
 import twilio from 'twilio';
 import type { SMSProvider } from './types';
 
