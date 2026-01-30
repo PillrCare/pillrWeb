@@ -1,109 +1,209 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Pillr.</h1>
-</a>
+<h1 align="center">Pillr</h1>
 
 <p align="center">
- The fastest way to build apps with Next.js and Supabase
+  A medication adherence monitoring application using IoT devices
 </p>
 
 <p align="center">
+  <a href="#overview"><strong>Overview</strong></a> ·
   <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
+  <a href="#tech-stack"><strong>Tech Stack</strong></a> ·
+  <a href="#getting-started"><strong>Getting Started</strong></a> ·
+  <a href="#user-roles"><strong>User Roles</strong></a> ·
+  <a href="#development"><strong>Development</strong></a>
 </p>
 <br/>
 
+## Overview
+
+Pillr connects patients with caregivers and agencies to track medication schedules and device interactions. Using IoT devices with biometric security and weight-based verification, Pillr ensures medication adherence while providing real-time monitoring and alerts to caregivers.
+
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+### Core Functionality
 
-## Demo
+- **Biometric Security**: Integrated fingerprint scanner ensures only authorized individuals access medications
+- **Weight-Based Verification**: High-precision load cells detect when medication is actually removed, preventing false confirmations
+- **Real-Time Alerts**: Instant notifications to caregivers when doses are missed or taken
+- **Medication Scheduling**: Configure weekly medication schedules with specific dose times
+- **Multi-User Monitoring**: Caregivers can monitor multiple patients across their dashboard
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+### IoT Device Integration
 
-## Deploy to Vercel
+- **Device Enrollment**: Pair IoT devices with patient accounts using connection codes
+- **Device Commands**: Send commands to devices (enroll, emergency unlock, clear)
+- **Activity Logging**: Track all device interactions including searches, enrollments, and opens
+- **Next Event Tracking**: Automatic calculation of upcoming medication times
 
-Vercel deployment will guide you through creating a Supabase account and project.
+### User Management
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+- **Role-Based Access**: Three distinct user types (Patient, Caregiver, Manager)
+- **Agency Support**: Multi-tenant architecture supporting multiple agencies
+- **Caregiver-Patient Connections**: Secure pairing system using temporary connection codes
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+## Tech Stack
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+- **Framework**: [Next.js 15](https://nextjs.org) with App Router
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **UI Library**: [React 19](https://react.dev/)
+- **Database & Auth**: [Supabase](https://supabase.com) (PostgreSQL with Row Level Security)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com) with [shadcn/ui](https://ui.shadcn.com/) components
+- **Email**: [Resend](https://resend.com) for transactional emails
+- **Theme**: [next-themes](https://github.com/pacocoursey/next-themes) for dark/light mode
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+## User Roles
 
-## Clone and run locally
+The application supports three distinct user types:
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+### Patient
+- View their own medication schedule
+- Connect with caregivers using connection codes
+- Claim and manage IoT devices
+- View their medication history and device logs
+- Dashboard: `/dashboard/patient`
 
-2. Create a Next.js app using the Supabase Starter template npx command
+### Caregiver
+- Monitor multiple patients
+- View medication schedules for all assigned patients
+- Receive alerts when patients miss medications
+- Generate connection codes to pair with patients
+- Dashboard: `/dashboard/caregiver`
+
+### Manager (Agency)
+- Manage agency-wide operations
+- Oversee multiple caregivers and patients
+- View analytics and reports
+- Dashboard: `/dashboard/admin`
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+ installed
+- A [Supabase](https://supabase.com) account and project
+- [Resend](https://resend.com) API key (optional, for email functionality)
+
+### Setup Instructions
+
+1. **Clone the repository**
 
    ```bash
-   npx create-next-app --example with-supabase with-supabase-app
+   git clone https://github.com/IsNielsen/pillr.git
+   cd pillr
    ```
+
+2. **Install dependencies**
 
    ```bash
-   yarn create next-app --example with-supabase with-supabase-app
+   npm install
    ```
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
+3. **Configure environment variables**
+
+   Copy `.env.example` to `.env.local` and update with your values:
+
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
+   RESEND_API_KEY=your-resend-api-key
+   CONTACT_EMAIL=your-contact-email
+   RESEND_FROM_EMAIL=your-from-email
    ```
 
-3. Use `cd` to change into the app's directory
+   Find your Supabase credentials in your [project's API settings](https://supabase.com/dashboard/project/_/settings/api).
 
-   ```bash
-   cd with-supabase-app
-   ```
+4. **Set up the database**
 
-4. Rename `.env.example` to `.env.local` and update the following:
+   See [SCHEMA.md](./SCHEMA.md) for the database schema. You'll need to create the tables and functions in your Supabase project.
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
-
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
-
-5. You can now run the Next.js local development server:
+5. **Run the development server**
 
    ```bash
    npm run dev
    ```
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+   The application will be available at [http://localhost:3000](http://localhost:3000).
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+## Development
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+### Available Scripts
 
-## Feedback and issues
+```bash
+npm run dev          # Start development server with Turbopack
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+### Project Structure
 
-## More Supabase examples
+```
+app/                 # Next.js App Router pages
+├── auth/           # Authentication pages (sign-in, sign-up)
+├── dashboard/      # Role-specific dashboards
+│   ├── patient/    # Patient dashboard
+│   ├── caregiver/  # Caregiver dashboard
+│   └── admin/      # Manager/agency dashboard
+├── claim-device/   # Device claiming flow
+└── contact/        # Contact form
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+components/         # Reusable React components
+lib/               # Utility functions and Supabase clients
+```
+
+### Database Architecture
+
+Pillr uses Supabase (PostgreSQL) with Row Level Security (RLS) policies to ensure data privacy:
+
+- **profiles**: User data with role and agency assignment
+- **weekly_events**: Medication schedules
+- **medications**: Medication details linked to schedules
+- **device_commands**: Commands sent to IoT devices
+- **device_log**: Device activity history
+- **caregiver_patient**: Caregiver-patient relationships
+- **connection_codes**: Temporary pairing codes
+
+See [SCHEMA.md](./SCHEMA.md) for detailed schema information.
+
+### Key Implementation Details
+
+- **Timezone Handling**: All times stored in UTC, converted to local time for display
+- **Authentication**: Cookie-based SSR auth with Supabase
+- **Client Pattern**: Separate browser and server clients (see `lib/supabase/`)
+- **Dashboard Routing**: Automatic redirect based on user type
+
+For more development guidance, see [CLAUDE.md](./CLAUDE.md).
+
+## Deployment
+
+### Deploy to Vercel
+
+The easiest way to deploy Pillr is using [Vercel](https://vercel.com):
+
+1. Push your code to GitHub
+2. Import your repository in Vercel
+3. Configure environment variables in Vercel's project settings
+4. Deploy
+
+Vercel will automatically build and deploy your application. Make sure to set up all required environment variables in your Vercel project settings.
+
+### Database Setup
+
+Before deploying, ensure your Supabase database is properly configured:
+
+1. Create all required tables (see [SCHEMA.md](./SCHEMA.md))
+2. Set up Row Level Security policies
+3. Create necessary database functions
+4. Enable Realtime if needed
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is part of a medication adherence monitoring system developed for healthcare applications.
+
+## Support
+
+For questions or support, use the contact form at `/contact` or reach out to the development team.
