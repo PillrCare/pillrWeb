@@ -92,8 +92,5 @@ export default async function DashboardPatient() {
         </div>
         <PatientView initialPatients={patients}/>
       </div>
-      
-      
-    </div>
   );
 }

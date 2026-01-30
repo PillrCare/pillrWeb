@@ -22,7 +22,7 @@ type PatientStatsRow = Tables<"patient_stats">;
 
 export default function AdminDashboard() {
   const supabase = useMemo(() => createClient(), []);
-  const [userProfile, setUserProfile] = useState<Patient | null>(null);
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [agencyId, setAgencyId] = useState<string | null>(null);
   const [activeCaregivers, setActiveCaregivers] = useState<any[] | null>(null);
