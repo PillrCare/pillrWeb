@@ -41,6 +41,9 @@ export default function ProtectedLayout({
             </a>
             {"  2025"}
           </p>
+          <Link href="/dashboard/sms-preferences" className="hover:underline">
+            SMS Preferences
+          </Link>
           <ThemeSwitcher />
         </footer>
       </div>

@@ -26,15 +26,20 @@ export default async function DashboardPatient() {
     .eq("id", userId)
     .maybeSingle();
 
-  if (profile.user_type !== 'caregiver') {
-    redirect(`/dashboard/${profile.user_type}`)
-  }
-
   if (profileError) {
     // handle or surface the error — here we redirect or you could render an error UI
     console.error("Failed to load profile:", profileError);
     // Optionally redirect, show an error, or return a server error page
     redirect("/auth/login");
+  }
+
+  // Redirect to SMS preferences if user hasn't seen the opt-in page
+  if (!profile.sms_opt_in_shown) {
+    redirect("/dashboard/sms-preferences");
+  }
+
+  if (profile.user_type !== 'caregiver') {
+    redirect(`/dashboard/${profile.user_type}`)
   }
 
   // Fetch caregiver's patients via relationship table
@@ -63,25 +68,26 @@ export default async function DashboardPatient() {
 
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex-down gap-3 items-center">
-          <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
-          <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
+        <div className="w-full">
+          <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex-down gap-3 items-center">
+            <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
+            <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
+          </div>
         </div>
-      </div>
 {/* 
-      <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          {JSON.stringify(profile, null, 2)}
-        </pre>
-      </div> */}
+        <div className="flex flex-col gap-2 items-start">
+          <h2 className="font-bold text-2xl mb-4">Your user details</h2>
+          <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
+            {JSON.stringify(profile, null, 2)}
+          </pre>
+        </div> */}
 
-      <div className="w-full">
-        <div className="w-full flex justify-between items-center">
-          <h2 className="font-bold text-2xl mb-4">Your patients</h2>
-          <div>
-            <ConnectPatient/>
+        <div className="w-full">
+          <div className="w-full flex justify-between items-center">
+            <h2 className="font-bold text-2xl mb-4">Your patients</h2>
+            <div>
+              <ConnectPatient/>
+            </div>
           </div>
         </div>
         <PatientView initialPatients={patients}/>

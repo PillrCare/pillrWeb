@@ -6,6 +6,14 @@ import { StatCard } from "@/components/dashboard/admin/stat-card";
 import { SimpleBarChart } from "@/components/dashboard/admin/bar-chart";
 import { SimplePieChart } from "@/components/dashboard/admin/pie-chart";
 import { RecentActivity } from "@/components/dashboard/admin/recent-activity";
+import { PatientSearch } from "@/components/dashboard/admin/patient-search";
+import PatientInfo from "@/components/dashboard/patient-info";
+import Sparkline from "@/components/dashboard/sparkline";
+import MissedDosesList from "@/components/dashboard/missed-doses-list";
+import DeviceLog from "@/components/dashboard/device-log";
+import ScheduleEditor from "@/components/schedule-editor";
+import { redirect } from "next/navigation";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import PatientView from "@/components/dashboard/patient-view";
 import type { Tables } from "@/lib/types";
 
@@ -14,8 +22,11 @@ type PatientStatsRow = Tables<"patient_stats">;
 
 export default function AdminDashboard() {
   const supabase = useMemo(() => createClient(), []);
-  const [activeCaregivers, setActiveCaregivers] = useState<Profile[] | null>(null);
-  const [patients, setPatients] = useState<Profile[] | null>(null);
+  const [userProfile, setUserProfile] = useState<Patient | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [agencyId, setAgencyId] = useState<string | null>(null);
+  const [activeCaregivers, setActiveCaregivers] = useState<any[] | null>(null);
+  const [patients, setPatients] = useState<any[] | null>(null);
   const [agencyProfiles, setAgencyProfiles] = useState<Profile[] | null>(null);
   const [patientStats, setPatientStats] = useState<PatientStatsRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +44,8 @@ export default function AdminDashboard() {
           return;
         }
 
+        setUserId(user.id);
+
         // Verify admin access and get profile
         const { data: profile } = await supabase
           .from("profiles")
@@ -42,6 +55,17 @@ export default function AdminDashboard() {
 
         if (profile?.user_type !== "admin") {
           return;
+        }
+
+        // Redirect to SMS preferences if user hasn't seen the opt-in page
+        if (profile && !profile.sms_opt_in_shown) {
+          window.location.href = "/dashboard/sms-preferences";
+          return;
+        }
+
+        if (mounted) {
+          setUserProfile(profile);
+          setAgencyId(profile?.agency_id);
         }
 
         // Fetch active caregivers
@@ -151,6 +175,10 @@ export default function AdminDashboard() {
 
   if (loading) {
     return <div>Loading…</div>;
+  }
+
+  if (!userId) {
+    return <div>Loading...</div>;
   }
 
   return (
