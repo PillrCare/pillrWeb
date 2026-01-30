@@ -13,6 +13,8 @@ import Sparkline from "@/components/dashboard/sparkline";
 import MissedDosesList from "@/components/dashboard/missed-doses-list";
 import DeviceLog from "@/components/dashboard/device-log";
 import ScheduleEditor from "@/components/schedule-editor";
+import { redirect } from "next/navigation";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types";
 
 type DeviceLogRow = Tables<"device_log">;
@@ -37,6 +39,7 @@ type Patient = {
 export default function AdminDashboard() {
   const supabase = useMemo(() => createClient(), []);
   const [userProfile, setUserProfile] = useState<Patient | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [agencyId, setAgencyId] = useState<string | null>(null);
   const [activeCaregivers, setActiveCaregivers] = useState<any[] | null>(null);
   const [patients, setPatients] = useState<any[] | null>(null);
@@ -66,6 +69,8 @@ export default function AdminDashboard() {
           return;
         }
 
+        setUserId(user.id);
+
         // Verify admin access and get profile
         const { data: profile } = await supabase
           .from("profiles")
@@ -74,6 +79,12 @@ export default function AdminDashboard() {
           .maybeSingle();
 
         if (profile?.user_type !== "admin") {
+          return;
+        }
+
+        // Redirect to SMS preferences if user hasn't seen the opt-in page
+        if (profile && !profile.sms_opt_in_shown) {
+          window.location.href = "/dashboard/sms-preferences";
           return;
         }
 
@@ -295,6 +306,10 @@ export default function AdminDashboard() {
 
   if (loading) {
     return <div>Loading…</div>;
+  }
+
+  if (!userId) {
+    return <div>Loading...</div>;
   }
 
   return (

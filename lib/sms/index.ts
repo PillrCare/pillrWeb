@@ -14,6 +14,13 @@ import type { SMSProvider } from './types';
 export function getSMSProvider(): SMSProvider {
   const provider = process.env.SMS_PROVIDER || 'null';
   
+  // Log which provider is being used (helpful for debugging)
+  if (provider === 'null') {
+    console.warn('[SMS Provider] Using NullProvider - messages will be logged but not sent. Set SMS_PROVIDER=surge to enable SMS sending.');
+  } else {
+    console.log(`[SMS Provider] Using ${provider} provider`);
+  }
+  
   switch (provider) {
     case 'null':
     default:

@@ -18,16 +18,21 @@
         
         // fetch profile row
         const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", userId)
-            .maybeSingle();
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle();
 
         if (profileError) {
             // handle or surface the error — here we redirect or you could render an error UI
             console.error("Failed to load profile:", profileError);
             // Optionally redirect, show an error, or return a server error page
             redirect("/auth/login");
+        }
+
+        // Redirect to SMS preferences if user hasn't seen the opt-in page
+        if (!profile.sms_opt_in_shown) {
+          redirect("/dashboard/sms-preferences");
         }
 
         redirect(`/dashboard/${profile.user_type}`)

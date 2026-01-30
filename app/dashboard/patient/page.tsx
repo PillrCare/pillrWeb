@@ -37,6 +37,18 @@ export default async function DashboardPatient() {
     .eq("id", userId)
     .maybeSingle();
 
+  if (profileError) {
+    // handle or surface the error — here we redirect or you could render an error UI
+    console.error("Failed to load profile:", profileError);
+    // Optionally redirect, show an error, or return a server error page
+    redirect("/auth/login");
+  }
+
+  // Redirect to SMS preferences if user hasn't seen the opt-in page
+  if (!profile.sms_opt_in_shown) {
+    redirect("/dashboard/sms-preferences");
+  }
+
   if (profile.user_type !== 'patient') {
     redirect(`/dashboard/${profile.user_type}`)
   }
@@ -124,46 +136,46 @@ export default async function DashboardPatient() {
 
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full bg-accent text-sm p-3 px-5 rounded-md text-foreground flex justify-between items-center">
-        <div className="flex-down gap-3 items-center">
-          <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
-          <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
-        </div>
-        <div className="flex inline">
-          <GenerateCode/>
-          <EmergencyUnlockButton patientId={user.id}/>
+        <div className="w-full bg-accent text-sm p-3 px-5 rounded-md text-foreground flex justify-between items-center">
+          <div className="flex-down gap-3 items-center">
+            <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
+            <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
+          </div>
+          <div className="flex items-center gap-2">
+            <GenerateCode/>
+            <EmergencyUnlockButton patientId={user.id}/>
 
+          </div>
         </div>
-      </div>
 
-      {!device && (
+        {!device && (
+          <div>
+            <DeviceSetupBanner />
+          </div>
+        )}
+
         <div>
-          <DeviceSetupBanner />
+          <UserStats patientStats={patientStats} />
         </div>
-      )}
 
-      <div>
-        <UserStats patientStats={patientStats} />
-      </div>
+        <div>
+          <TodaysSchedule schedule={schedule} deviceLog={deviceLog} />
+        </div>
 
-      <div>
-        <TodaysSchedule schedule={schedule} deviceLog={deviceLog} />
-      </div>
+        <div>
+          <Schedule schedule={schedule} />
+        </div>
 
-      <div>
-        <Schedule schedule={schedule} />
-      </div>
+        <div>
+          <DeviceLog deviceLog={deviceLog} />
+        </div>
 
-      <div>
-        <DeviceLog deviceLog={deviceLog} />
-      </div>
+        
 
-      
+        
 
-      
-
-      <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Device Actions</h2>
+        <div className="flex flex-col gap-2 items-start">
+          <h2 className="font-bold text-2xl mb-4">Device Actions</h2>
         <EnrollButton userId={user.id}/>
       </div>
       

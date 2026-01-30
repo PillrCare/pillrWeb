@@ -66,7 +66,8 @@ export function RoleSelector({ className }: { className?: string }) {
                 
                 // Route users based on selected role
                 if (role === "patient") {
-                    router.push("/auth/profile-setup/schedule");
+                    // For patients, show SMS opt-in first, then schedule setup
+                    router.push("/auth/profile-setup/sms-opt-in");
                 } else if (role === "caregiver") {
                     router.push("/dashboard");
                 } else {
