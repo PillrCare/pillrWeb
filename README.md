@@ -43,7 +43,7 @@ Pillr connects patients with caregivers and agencies to track medication schedul
 
 ## Tech Stack
 
-- **Framework**: [Next.js 15](https://nextjs.org) with App Router
+- **Framework**: [Next.js](https://nextjs.org) (App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **UI Library**: [React 19](https://react.dev/)
 - **Database & Auth**: [Supabase](https://supabase.com) (PostgreSQL with Row Level Security)
@@ -104,13 +104,15 @@ The application supports three distinct user types:
 
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-or-anon-key
    RESEND_API_KEY=your-resend-api-key
    CONTACT_EMAIL=your-contact-email
    RESEND_FROM_EMAIL=your-from-email
    ```
 
    Find your Supabase credentials in your [project's API settings](https://supabase.com/dashboard/project/_/settings/api).
+
+   > **Note**: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` accepts either Supabase's new publishable keys or legacy anon keys.
 
 4. **Set up the database**
 
