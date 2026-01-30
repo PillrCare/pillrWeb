@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-export default function SMSPreferencesPage() {
+function SMSPreferencesClient() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [optIn, setOptIn] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -235,6 +235,20 @@ export default function SMSPreferencesPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function SMSPreferencesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-svh w-full items-center justify-center">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      }
+    >
+      <SMSPreferencesClient />
+    </Suspense>
   );
 }
 
