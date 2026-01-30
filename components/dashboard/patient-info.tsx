@@ -4,21 +4,12 @@ type Patient = {
   id?: string;
   username?: string;
   name?: string;
-  age?: number;
-  phone?: string;
-  email?: string;
-  address?: string;
   device_id?: string;
   device_status?: string;
-  adherence_rate?: number;
 };
 
 type EditForm = {
   name?: string;
-  age?: number;
-  phone?: string;
-  email?: string;
-  address?: string;
 };
 
 type Props = {
@@ -39,20 +30,10 @@ export default function PatientInfo({ patient, isEditing, editForm, setEditForm,
         <div>
           <div className="text-xs text-muted-foreground">Name</div>
         {isEditing ? (
-            <input value={editForm.name ?? patient?.name ?? ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-2 py-1 border rounded" />
+            <input value={editForm.name ?? patient?.name ?? patient?.username ?? ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-2 py-1 border rounded" />
           ) : (
             <div className="text-foreground">{patient?.name ?? patient?.username}</div>
           )}
-        </div>
-
-        <div>
-          <div className="text-xs text-muted-foreground">Contact</div>
-          <div className="text-sm text-foreground">{patient?.phone ?? "—"} · {patient?.email ?? "—"}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-muted-foreground">Address</div>
-          <div className="text-sm text-foreground">{patient?.address ?? "—"}</div>
         </div>
 
         <div>

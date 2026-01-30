@@ -42,6 +42,30 @@ export default async function DashboardPatient() {
     redirect(`/dashboard/${profile.user_type}`)
   }
 
+  // Fetch caregiver's patients via relationship table
+  const { data: relationships, error: relError } = await supabase
+    .from("caregiver_patient")
+    .select(`
+      patient_id,
+      profiles!fk_patient_profile (
+        id,
+        username,
+        user_type,
+        agency_id,
+        timezone,
+        updated_at
+      )
+    `)
+    .eq("caregiver_id", userId);
+
+  if (relError) {
+    console.error("Failed to load patients:", relError);
+  }
+
+  // Extract patient profiles from join result
+  // Foreign key relationships return as objects, not arrays
+  const patients = relationships?.map((r: any) => r.profiles).filter((p: any) => p != null) ?? [];
+
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
         <div className="w-full">
@@ -65,7 +89,8 @@ export default async function DashboardPatient() {
               <ConnectPatient/>
             </div>
           </div>
-        <PatientView/>
+        </div>
+        <PatientView initialPatients={patients}/>
       </div>
       
       

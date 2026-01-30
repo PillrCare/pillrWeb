@@ -10,90 +10,42 @@ import DeviceLog from '@/components/dashboard/device-log';
 import Schedule from "./schedule";
 import EmergencyUnlockButton from "./emergency-unlock-button";
 import EnrollButton from "./enroll_button";
+import { PatientSearch } from "./admin/patient-search";
 import type { Tables } from '@/lib/types';
 
 type DeviceLogRow = Tables<"device_log">;
 type PatientStatsRow = Tables<"patient_stats">;
 type ScheduleEvent = Tables<"weekly_events">;
-
+type Profile = Tables<"profiles">;
 
 type Patient = {
     id: string;
     username: string;
     name?: string;
-    age?: number;
-    phone?: string;
-    email?: string;
-    address?: string;
     device_id?: string;
     device_status?: string;
     adherence_rate?: number;
+    user_type?: string;
+    agency_id?: string | null;
 };
 
-export default function PatientView() {
+type Props = {
+    initialPatients: Profile[];
+    showRoleFilters?: boolean; // Enable admin role filtering
+};
+
+export default function PatientView({ initialPatients, showRoleFilters = false }: Props) {
     const supabase = useMemo(() => createClient(), []);
-    const [patients, setPatients] = useState<Patient[] | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [openPatientId, setOpenPatientId] = useState<string | null>(null);
     const [patient, setPatient] = useState<Patient | null>(null);
     const [missedDoses, setMissedDoses] = useState<Array<{ medication?: string; name?: string; time?: string; reason?: string }>>([]);
     const [adherenceTrend, setAdherenceTrend] = useState<Array<{ date: string; rate: number }>>([]);
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState<{ name?: string; age?: number; phone?: string; email?: string; address?: string }>({});
+    const [editForm, setEditForm] = useState<{ name?: string }>({});
     const [deviceLog, setDeviceLog] = useState<DeviceLogRow[]>([]);
     const [patientStats, setPatientStats] = useState<PatientStatsRow | null>(null);
     const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
     const [showScheduleEditor, setShowScheduleEditor] = useState(false);
-
-    useEffect(() => {
-        let mounted = true;
-
-        async function load() {
-            setLoading(true);
-
-            try {
-                const { data: userData, error: userError } = await supabase.auth.getUser();
-                const user = userData?.user;
-
-                if (userError || !user) {
-                    setError("Not authenticated");
-                    return;
-                }
-
-                const { data: patients, error: patientsError } = await supabase
-                    .from("profiles")
-                    .select("username, id")
-                    .eq("user_type", "patient");
-
-                if (patientsError) {
-                    console.error("Failed to load patient list", patientsError);
-                    setError(patientsError.message ?? String(patientsError));
-                    return;
-                }
-                if (patients && mounted) {
-                    const mapped = patients.map((r: unknown) => {
-                        const row = r as { username: string; id: string };
-                        return {
-                            username: row.username,
-                            id: row.id,
-                        };
-                    });
-                    setPatients(mapped);
-                }
-
-                // if (mounted) setPatients(data ?? []);
-            } finally {
-                if (mounted) setLoading(false);
-            }
-        }
-
-        load();
-
-        return () => {
-            mounted = false;
-        };
-    }, [supabase]);
 
     useEffect(() => {
         if (!openPatientId) {
@@ -121,7 +73,21 @@ export default function PatientView() {
                     console.warn('No profile found', profileError);
                 }
 
-                if (mounted) setPatient(profile ?? null);
+                // Fetch device info from user_device table
+                const { data: device } = await supabase
+                    .from('user_device')
+                    .select("*")
+                    .eq('user_id', openPatientId)
+                    .maybeSingle();
+
+                // Merge device info into patient object
+                const patientWithDevice = {
+                    ...profile,
+                    device_id: device?.device_id ?? undefined,
+                    device_status: device?.is_active ? 'connected' : 'disconnected'
+                };
+
+                if (mounted) setPatient(patientWithDevice ?? null);
 
 
                 // try to load missed doses
@@ -142,16 +108,9 @@ export default function PatientView() {
                     console.warn('adherence table not available', e);
                     if (mounted) setAdherenceTrend([{ date: new Date().toISOString().slice(0, 10), rate: profile?.adherence_rate ?? 0 }]);
                 }
-                
-                try {
-                    console.log("************************")
 
-                    const { data: device } = await supabase
-                        .from('user_device')
-                        .select("*")
-                        .eq('user_id', openPatientId)
-                        .maybeSingle();
-                    console.log(device.device_id)
+                // Load device logs using the device we already fetched
+                try {
                     if (device?.device_id) {
                         const { data: logData } = await supabase
                             .from('device_log')
@@ -219,132 +178,162 @@ export default function PatientView() {
         };
     }, [openPatientId, supabase]);
 
-
-    if (loading) return <div>Loading…</div>;
-    if (error) return <div className="text-destructive">{error}</div>;
-
     return (
-        <div className="w-full flex flex-col gap-2 items-start">
-            
-            <pre className="w-full text-xs font-mono p-3 rounded border max-h-64 overflow-auto">
-                {patients?.map((p, idx) => (
-                    <div className="w-full m-2 p-2 bg-accent rounded border flex justify-between align-center" key={p.id ?? idx}>
-                        <div className="text-2xl w-full center">{p.username}</div>
-                        <div className="flex gap-2">
-                          <button className="p-2 m-1 bg-background rounded border" onClick={() => setOpenPatientId(String(p.id))}>See Details</button>
-                          {/* <button className="p-2 m-1 bg-destructive rounded border" onClick={() => editPatient(idx)}>Remove</button> */}
-                        </div>
-                    </div>
-
-                ))}
-            </pre>
+        <div className="w-full flex flex-col gap-4 items-start">
+            <div className="w-full max-w-2xl">
+                <PatientSearch
+                    profiles={initialPatients}
+                    onSelectUser={(userId) => setOpenPatientId(userId)}
+                    showRoleFilters={showRoleFilters}
+                />
+            </div>
 
             {openPatientId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                     <div className="absolute inset-0" onClick={() => setOpenPatientId(null)} />
 
-                    <div className="relative z-10 w-full max-w-6xl max-h-[90vh] overflow-auto bg-background rounded p-6 border">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">Patient Details & Schedule</h3>
-                            <div className="flex items-center gap-2">
+                    <div className="relative z-10 w-full max-w-7xl max-h-[95vh] overflow-hidden bg-background rounded-lg shadow-2xl border mx-4">
+                        {/* Header */}
+                        <div className="flex justify-between items-center p-6 border-b bg-muted/30">
+                            <div>
+                                <h3 className="text-2xl font-bold">Patient Overview</h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    {patient?.name || patient?.username}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
                                 {openPatientId && <EmergencyUnlockButton patientId={openPatientId} />}
                                 {openPatientId && <EnrollButton patientId={openPatientId} />}
-                                <button className="p-2 rounded border" onClick={() => { setIsEditing(false); setOpenPatientId(null); }}>Close</button>
+                                <button
+                                    className="px-4 py-2 rounded-md border hover:bg-accent transition-colors font-medium"
+                                    onClick={() => { setIsEditing(false); setOpenPatientId(null); }}
+                                >
+                                    Close
+                                </button>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Left column: Patient Info + Stats + Problems */}
-                            <div className="lg:col-span-1 space-y-4">
-                                <PatientInfo
-                                    patient={patient}
-                                    isEditing={isEditing}
-                                    editForm={editForm}
-                                    setEditForm={setEditForm}
-                                    onEdit={() => { setIsEditing(true); setEditForm({ name: patient?.name, age: patient?.age, phone: patient?.phone, email: patient?.email, address: patient?.address }); }}
-                                    onCancel={() => { setIsEditing(false); setEditForm({}); }}
-                                    onSave={async () => {
-                                        try {
-                                            const updates = { ...editForm };
-                                            await supabase.from('profiles').update(updates).eq('id', patient?.id);
-                                            // refresh
-                                            const { data: refreshed } = await supabase.from('profiles').select('*').eq('id', patient?.id).single();
-                                            setPatient(refreshed ?? patient);
-                                            setIsEditing(false);
-                                            setEditForm({});
-                                        } catch (e) {
-                                            console.error('Failed to save patient', e);
-                                        }
-                                    }}
-                                />
+                        {/* Content */}
+                        <div className="overflow-auto max-h-[calc(95vh-88px)] p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                {/* Left Sidebar: Patient Info + Stats */}
+                                <div className="lg:col-span-4 space-y-6">
+                                    <div className="bg-card rounded-lg border shadow-sm">
+                                        <PatientInfo
+                                            patient={patient}
+                                            isEditing={isEditing}
+                                            editForm={editForm}
+                                            setEditForm={setEditForm}
+                                            onEdit={() => {
+                                                setIsEditing(true);
+                                                setEditForm({
+                                                    name: patient?.name ?? patient?.username
+                                                });
+                                            }}
+                                            onCancel={() => { setIsEditing(false); setEditForm({}); }}
+                                            onSave={async () => {
+                                                try {
+                                                    // Map name to username field in database
+                                                    const updates = { username: editForm.name };
+                                                    await supabase.from('profiles').update(updates).eq('id', patient?.id);
+                                                    const { data: refreshed } = await supabase.from('profiles').select('*').eq('id', patient?.id).single();
 
-                                {patientStats && (
-                                    <div className="p-3 rounded border bg-accent">
-                                        <h4 className="font-semibold mb-2">Patient Statistics</h4>
-                                        <div className="space-y-1 text-sm">
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Overall adherence</span>
-                                                <span className="font-semibold">{(patientStats.on_time_adherence_pct ?? 0).toFixed(1)}%</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Past week</span>
-                                                <span className="font-semibold">{(patientStats.adherence_past_week_pct ?? 0).toFixed(1)}%</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Past month</span>
-                                                <span className="font-semibold">{(patientStats.adherence_past_month_pct ?? 0).toFixed(1)}%</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Missed doses</span>
-                                                <span className="font-semibold">{patientStats.missed_doses ?? 0}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Total opens</span>
-                                                <span className="font-semibold">{patientStats.total_opens ?? 0}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-muted-foreground">Emergency accesses</span>
-                                                <span className="font-semibold">{patientStats.emercency_accesses ?? 0}</span>
+                                                    // Re-fetch device info and merge
+                                                    const { data: device } = await supabase
+                                                        .from('user_device')
+                                                        .select("*")
+                                                        .eq('user_id', patient?.id)
+                                                        .maybeSingle();
+
+                                                    const patientWithDevice = {
+                                                        ...refreshed,
+                                                        device_id: device?.device_id ?? undefined,
+                                                        device_status: device?.is_active ? 'connected' : 'disconnected'
+                                                    };
+
+                                                    setPatient(patientWithDevice ?? patient);
+                                                    setIsEditing(false);
+                                                    setEditForm({});
+                                                } catch (e) {
+                                                    console.error('Failed to save patient', e);
+                                                }
+                                            }}
+                                        />
+                                    </div>
+
+                                    {patientStats && (
+                                        <div className="bg-card rounded-lg border shadow-sm p-5">
+                                            <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                                                Statistics
+                                            </h4>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center py-2 border-b">
+                                                    <span className="text-sm text-muted-foreground">Overall adherence</span>
+                                                    <span className="text-lg font-bold text-green-600">
+                                                        {(patientStats.on_time_adherence_pct ?? 0).toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b">
+                                                    <span className="text-sm text-muted-foreground">Past week</span>
+                                                    <span className="font-semibold">{(patientStats.adherence_past_week_pct ?? 0).toFixed(1)}%</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b">
+                                                    <span className="text-sm text-muted-foreground">Past month</span>
+                                                    <span className="font-semibold">{(patientStats.adherence_past_month_pct ?? 0).toFixed(1)}%</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b">
+                                                    <span className="text-sm text-muted-foreground">Missed doses</span>
+                                                    <span className="font-semibold text-orange-600">{patientStats.missed_doses ?? 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b">
+                                                    <span className="text-sm text-muted-foreground">Total opens</span>
+                                                    <span className="font-semibold">{patientStats.total_opens ?? 0}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2">
+                                                    <span className="text-sm text-muted-foreground">Emergency accesses</span>
+                                                    <span className="font-semibold text-red-600">{patientStats.emercency_accesses ?? 0}</span>
+                                                </div>
                                             </div>
                                         </div>
+                                    )}
+
+                                    <div className="bg-card rounded-lg border shadow-sm">
+                                        <DeviceLog deviceLog={deviceLog} />
                                     </div>
-                                )}
-                            </div>
-
-                            <div className="p-3 bg-red-50 rounded border border-red-200">
-                                <h4 className="font-semibold mb-2"> No Recent Missed Doses</h4>
-                                <div className="space-y-2">
-                                    
-                                </div>
-                            </div>
-
-                             <div className="lg:col-span-1 space-y-4">
-                                <DeviceLog deviceLog={deviceLog} />
-                             </div>
-
-
-                            {/* Middle + Right: Chart, meds, missed doses, and scheduler */}
-                            <div className="lg:col-span-2 space-y-4">
-                                <div className="p-3 bg-accent rounded border">
-                                    <h4 className="font-semibold mb-3">Adherence Trend (Last 7 Days)</h4>
-                                    <Sparkline data={adherenceTrend} />
                                 </div>
 
-                                {/* <MedicationsList medications={medications} /> */}
-
-                                <MissedDosesList missed={missedDoses} />
-
-                                <div className="p-3 bg-accent rounded border space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="font-semibold">Weekly Schedule</h4>
-                                        <button
-                                            className="text-sm px-3 py-1 rounded border hover:bg-muted"
-                                            onClick={() => setShowScheduleEditor(true)}
-                                        >
-                                            Edit Schedule
-                                        </button>
+                                {/* Main Content: Charts, Schedule, and Missed Doses */}
+                                <div className="lg:col-span-8 space-y-6">
+                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border shadow-sm p-6">
+                                        <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                            </svg>
+                                            Adherence Trend (Last 7 Days)
+                                        </h4>
+                                        <Sparkline data={adherenceTrend} />
                                     </div>
-                                    <Schedule schedule={schedule} />
+
+                                    <div className="bg-card rounded-lg border shadow-sm p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-lg font-semibold flex items-center gap-2">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                Weekly Schedule
+                                            </h4>
+                                            <button
+                                                className="text-sm px-4 py-2 rounded-md border bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                                                onClick={() => setShowScheduleEditor(true)}
+                                            >
+                                                Edit Schedule
+                                            </button>
+                                        </div>
+                                        <Schedule schedule={schedule} />
+                                    </div>
+
+                                    <MissedDosesList missed={missedDoses} />
                                 </div>
                             </div>
                         </div>
@@ -353,14 +342,21 @@ export default function PatientView() {
             )}
 
             {showScheduleEditor && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowScheduleEditor(false)} />
-                    <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-auto bg-background rounded p-6 border">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">Edit Weekly Schedule</h3>
-                            <button className="p-2 rounded border" onClick={() => setShowScheduleEditor(false)}>Close</button>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="absolute inset-0" onClick={() => setShowScheduleEditor(false)} />
+                    <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden bg-background rounded-lg shadow-2xl border mx-4">
+                        <div className="flex justify-between items-center p-6 border-b bg-muted/30">
+                            <h3 className="text-xl font-bold">Edit Weekly Schedule</h3>
+                            <button
+                                className="px-4 py-2 rounded-md border hover:bg-accent transition-colors font-medium"
+                                onClick={() => setShowScheduleEditor(false)}
+                            >
+                                Close
+                            </button>
                         </div>
-                        <ScheduleEditor which_user={openPatientId ?? undefined} />
+                        <div className="overflow-auto max-h-[calc(90vh-88px)] p-6">
+                            <ScheduleEditor which_user={openPatientId ?? undefined} />
+                        </div>
                     </div>
                 </div>
             )}
