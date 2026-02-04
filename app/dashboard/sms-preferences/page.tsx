@@ -16,10 +16,16 @@ function SMSPreferencesClient() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-  const returnTo = searchParams.get("returnTo");
+  
+  // Store returnTo in state when component mounts
+  useEffect(() => {
+    const returnToParam = searchParams.get("returnTo");
+    setReturnTo(returnToParam);
+  }, [searchParams]);
 
   useEffect(() => {
     async function loadPreferences() {
@@ -116,12 +122,12 @@ function SMSPreferencesClient() {
         }
       }
 
-      // Redirect after a short delay if there's a returnTo parameter
-      if (returnTo) {
-        setTimeout(() => {
-          router.push(returnTo);
-        }, 1500);
-      }
+      // Redirect after a short delay
+      // Use returnTo from state (set during component mount) or default to dashboard
+      const redirectPath = returnTo || "/dashboard";
+      setTimeout(() => {
+        router.push(redirectPath);
+      }, 750);
     } catch (err) {
       console.error("Error updating SMS preferences:", err);
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
