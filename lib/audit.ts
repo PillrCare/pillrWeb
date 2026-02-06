@@ -19,10 +19,16 @@ export interface AuditLogParams {
  * Uses admin client to bypass RLS and ensure audit logs cannot be tampered with.
  * 
  * This function never throws - audit logging failures should not break the application.
+ * If the service role key is missing, logging is silently skipped.
  */
 export async function logAuditEvent(params: AuditLogParams): Promise<void> {
   try {
     const adminClient = createAdminClient();
+    
+    // Silently skip logging if admin client cannot be created (missing secret key)
+    if (!adminClient) {
+      return;
+    }
     
     const { error } = await adminClient
       .from('audit_log')
