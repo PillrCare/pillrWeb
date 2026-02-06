@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { logSelectQuery } from "@/lib/audit";
 
 import PatientView from "@/components/dashboard/patient-view";
 import ConnectPatient from "@/components/connect_patient";  
@@ -25,6 +26,9 @@ export default async function DashboardPatient() {
     .select("*")
     .eq("id", userId)
     .maybeSingle();
+
+  // Log PHI access
+  await logSelectQuery(userId, 'profiles', { data: profile, error: profileError }, { record_id: userId });
 
   if (profileError) {
     // handle or surface the error — here we redirect or you could render an error UI
@@ -57,6 +61,10 @@ export default async function DashboardPatient() {
       )
     `)
     .eq("caregiver_id", userId);
+
+  // Log PHI access (caregiver viewing patient relationships and patient profiles)
+  await logSelectQuery(userId, 'caregiver_patient', { data: relationships, error: relError });
+  // Note: Patient profiles are accessed via join - the relationship access is logged above
 
   if (relError) {
     console.error("Failed to load patients:", relError);

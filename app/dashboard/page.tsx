@@ -1,5 +1,6 @@
     import { redirect } from 'next/navigation';
     import { createClient } from "@/lib/supabase/server";
+    import { logSelectQuery } from "@/lib/audit";
 
 
     export default async function MyServerComponent() {
@@ -22,6 +23,9 @@
           .select("*")
           .eq("id", userId)
           .maybeSingle();
+
+        // Log PHI access
+        await logSelectQuery(userId, 'profiles', { data: profile, error: profileError }, { record_id: userId });
 
         if (profileError) {
             // handle or surface the error — here we redirect or you could render an error UI
