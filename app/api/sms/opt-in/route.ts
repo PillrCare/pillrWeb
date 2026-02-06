@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSMSProvider } from "@/lib/sms";
+import { logAuditEvent, getIpAddress, getUserAgent } from "@/lib/audit";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +27,24 @@ export async function POST(request: Request) {
     let { phoneNumber, smsNotificationsEnabled } = body;
 
     // Get current profile to check if user is opting in for the first time
-    const { data: currentProfile } = await supabase
+    const { data: currentProfile, error: profileError } = await supabase
       .from('profiles')
       .select('sms_notifications_enabled, phone_number')
       .eq('id', user.id)
       .maybeSingle();
+
+    // Log PHI access
+    await logAuditEvent({
+      user_id: user.id,
+      action: 'SELECT',
+      table_name: 'profiles',
+      record_id: user.id,
+      ip_address: getIpAddress(request),
+      user_agent: getUserAgent(request),
+      request_path: new URL(request.url).pathname,
+      request_method: request.method,
+      error_message: profileError?.message || null,
+    });
 
     const wasOptedIn = currentProfile?.sms_notifications_enabled || false;
     const isOptingIn = smsNotificationsEnabled && !wasOptedIn;
@@ -68,6 +82,19 @@ export async function POST(request: Request) {
       .from('profiles')
       .update(updateData)
       .eq('id', user.id);
+
+    // Log PHI update
+    await logAuditEvent({
+      user_id: user.id,
+      action: 'UPDATE',
+      table_name: 'profiles',
+      record_id: user.id,
+      ip_address: getIpAddress(request),
+      user_agent: getUserAgent(request),
+      request_path: new URL(request.url).pathname,
+      request_method: request.method,
+      error_message: updateError?.message || null,
+    });
 
     if (updateError) {
       console.error('Error updating profile:', updateError);

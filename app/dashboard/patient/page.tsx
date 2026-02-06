@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { logSelectQuery } from "@/lib/audit";
 
 import DeviceLog from '@/components/dashboard/device-log';
 import UserStats from "@/components/dashboard/user-stats";
@@ -37,6 +38,9 @@ export default async function DashboardPatient() {
     .eq("id", userId)
     .maybeSingle();
 
+  // Log PHI access
+  await logSelectQuery(userId, 'profiles', { data: profile, error: profileError }, { record_id: userId });
+
   if (profileError) {
     // handle or surface the error — here we redirect or you could render an error UI
     console.error("Failed to load profile:", profileError);
@@ -59,6 +63,9 @@ export default async function DashboardPatient() {
     .select("*")
     .eq('user_id', userId)
     .maybeSingle();
+
+  // Log PHI access
+  await logSelectQuery(userId, 'user_device', { data: device, error: deviceError }, { record_id: device?.device_id || userId });
   
   if (profileError) {
     // handle or surface the error — here we redirect or you could render an error UI
@@ -77,6 +84,9 @@ export default async function DashboardPatient() {
       .order('time_stamp', { ascending: false })
       .limit(50);
 
+    // Log PHI access (device_log contains biometric data)
+    await logSelectQuery(userId, 'device_log', { data: logData, error: logError }, { record_id: device.device_id });
+
     if (logError) {
       console.error('Failed to load device_log:', logError);
     } else if (logData) {
@@ -92,6 +102,9 @@ export default async function DashboardPatient() {
       .select('*')
       .eq('patient_id', userId)
       .maybeSingle();
+
+    // Log PHI access
+    await logSelectQuery(userId, 'patient_stats', { data: statsData, error: statsError }, { record_id: userId });
 
     if (statsError) {
       console.error('Failed to load patient stats:', statsError);
@@ -119,6 +132,10 @@ export default async function DashboardPatient() {
     .eq('user_id', userId)
     .order('day_of_week', { ascending: true })
     .order('dose_time', { ascending: true })
+
+  // Log PHI access (weekly_events and medications contain medication schedules)
+  await logSelectQuery(userId, 'weekly_events', { data: scheduleData, error: scheduleError }, { record_id: userId });
+  // Note: medications are accessed via join, logged as part of weekly_events
 
   if (scheduleError) {
     console.error('Failed to load schedule:', scheduleError);

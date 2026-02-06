@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getIpAddress, getUserAgent } from "@/lib/audit";
 
 const CONTACT_REASONS: Record<string, string> = {
   patient_emergency: "Patient Emergency",
@@ -87,12 +88,25 @@ export async function POST(request: Request) {
 
   let profile = null;
   if (user) {
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("username, user_type")
       .eq("id", user.id)
       .maybeSingle();
     profile = profileData;
+
+    // Log PHI access for authenticated users
+    await logAuditEvent({
+      user_id: user.id,
+      action: 'SELECT',
+      table_name: 'profiles',
+      record_id: user.id,
+      ip_address: getIpAddress(request),
+      user_agent: getUserAgent(request),
+      request_path: new URL(request.url).pathname,
+      request_method: request.method,
+      error_message: profileError?.message || null,
+    });
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);

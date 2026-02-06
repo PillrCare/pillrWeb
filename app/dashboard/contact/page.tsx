@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { ContactForm } from "@/components/contact-form";
 import { createClient } from "@/lib/supabase/server";
+import { logSelectQuery } from "@/lib/audit";
 
 export default async function ContactPage() {
   const supabase = await createClient();
@@ -18,6 +19,9 @@ export default async function ContactPage() {
     .select("username, user_type")
     .eq("id", user.id)
     .maybeSingle();
+
+  // Log PHI access
+  await logSelectQuery(user.id, 'profiles', { data: profile, error: profileError }, { record_id: user.id });
 
   if (profileError) {
     console.error("Failed to load profile:", profileError);
