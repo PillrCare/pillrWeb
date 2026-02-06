@@ -2,7 +2,9 @@
 
 import { act, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { json } from "stream/consumers";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { X } from "lucide-react";
 
 interface EnrollButtonProps {
     patientId: string;
@@ -102,78 +104,70 @@ export default function EnrollButton({ patientId }: EnrollButtonProps) {
 
     return (
         <>
-            <button
-                className="p-2 rounded border bg-background hover:bg-accent"
+            <Button
+                variant="outline"
+                size="default"
                 onClick={openModal}
                 disabled={loading}
             >
                 Enroll New Finger
-            </button>
+            </Button>
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/50" onClick={() => closeModal()} aria-hidden />
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => closeModal()} aria-hidden />
 
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="modal-title"
-                        className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl p-8 border border-gray-200"
-                    >
-                        <button
-                            type="button"
-                            onClick={closeModal}
-                            disabled={loading}
-                            aria-label="Close dialog"
-                            className="absolute top-4 right-4 inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="w-6 h-6"
-                                aria-hidden
-                            >
-                                <path d="M6 6l12 12" />
-                                <path d="M6 18L18 6" />
-                            </svg>
-                        </button>
-
-                        <h3 id="modal-title" className="text-3xl font-bold text-red-600 mb-6">
-                            Please Read These Instructions
-                        </h3>
-
-                        <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded">
-                            <ol className="list-decimal list-inside text-xl text-gray-800 space-y-4 leading-relaxed">
-                                <li>Press "Send Enroll Command" below.</li>
-                                <li>Immediately place the user's finger on the device sensor.</li>
-                                <li>When the sensor flashes red, remove the finger briefly, then place it back on the sensor.</li>
-                                <li>Once the sensor turns green, the enrollment is complete.</li>
-                                <li>Test the fingerprint to confirm it works.</li>
-                            </ol>
-                        </div>
-
-                        {error ? (
-                            <div className="text-lg text-red-600 mb-6 p-4 bg-red-50 rounded border border-red-200 font-medium">
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <div className="flex justify-center pt-4">
-                            <button
+                    <Card className="relative w-full max-w-2xl">
+                        <CardHeader className="relative">
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={closeModal}
+                                disabled={loading}
+                                aria-label="Close dialog"
+                                className="absolute top-4 right-4"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                            <CardTitle id="modal-title" className="text-2xl text-primary pr-12">
+                                Please Read These Instructions
+                            </CardTitle>
+                            <CardDescription className="mt-2">
+                                Follow the steps below to enroll a new fingerprint on the device.
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent>
+                            <div className="mb-6 p-4 bg-primary/10 border-l-4 border-primary rounded-lg">
+                                <ol className="list-decimal list-inside text-base space-y-3 leading-relaxed">
+                                    <li>Press "Send Enroll Command" below.</li>
+                                    <li>Immediately place the user's finger on the device sensor.</li>
+                                    <li>When the sensor flashes red, remove the finger briefly, then place it back on the sensor.</li>
+                                    <li>Once the sensor turns green, the enrollment is complete.</li>
+                                    <li>Test the fingerprint to confirm it works.</li>
+                                </ol>
+                            </div>
+
+                            {error ? (
+                                <div className="text-sm text-destructive mb-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20 font-medium">
+                                    {error}
+                                </div>
+                            ) : null}
+                        </CardContent>
+
+                        <CardFooter className="flex justify-center">
+                            <Button
+                                type="button"
+                                variant="default"
+                                size="lg"
                                 onClick={sendEnroll}
                                 disabled={loading}
-                                className="px-8 py-4 text-2xl font-bold rounded-lg shadow-md btn-accent disabled:opacity-60 hover:shadow-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
                             >
                                 {loading ? "Sending..." : "Send Enroll Command"}
-                            </button>
-                        </div>
-                    </div>
+                            </Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             )}
         </>

@@ -6,12 +6,11 @@ import { logSelectQuery } from "@/lib/audit";
 import DeviceLog from '@/components/dashboard/device-log';
 import UserStats from "@/components/dashboard/user-stats";
 import GenerateCode from "@/components/generate_code";
-import EnrollButton from "@/components/enroll-button";
 import Schedule from "@/components/dashboard/schedule";
 import type { Tables } from '@/lib/types';
 import TodaysSchedule from "@/components/dashboard/todays-schedule";
-import EmergencyUnlockButton from "@/components/dashboard/emergency-unlock-button";
 import DeviceSetupBanner from "@/components/dashboard/device-setup-banner";
+import DeviceCommandsCard from "@/components/dashboard/device-commands-card";
 
 type DeviceLogRow = Tables<"device_log">;
 type ScheduleEvent = Tables<"weekly_events">;
@@ -152,50 +151,50 @@ export default async function DashboardPatient() {
   }
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-        <div className="w-full bg-accent text-sm p-3 px-5 rounded-md text-foreground flex justify-between items-center">
-          <div className="flex-down gap-3 items-center">
-            <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
-            <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
-          </div>
-          <div className="flex items-center gap-2">
-            <GenerateCode/>
-            <EmergencyUnlockButton patientId={user.id}/>
-
+    <div className="flex-1 w-full flex flex-col gap-6">
+        {/* Header Card */}
+        <div className="w-full bg-card border rounded-xl shadow-sm p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-bold">{profile?.username ?? "No username"}</h1>
+              <p className="text-sm text-muted-foreground capitalize">{profile?.user_type ?? "No role"}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <GenerateCode/>
+            </div>
           </div>
         </div>
 
-        {!device && (
+        {/* Device Setup or Device Commands */}
+        {!device ? (
           <div>
             <DeviceSetupBanner />
           </div>
+        ) : (
+          <div>
+            <DeviceCommandsCard patientId={user.id} />
+          </div>
         )}
 
-        <div>
-          <UserStats patientStats={patientStats} />
-        </div>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <UserStats patientStats={patientStats} />
+            </div>
+            <div>
+              <TodaysSchedule schedule={schedule} deviceLog={deviceLog} />
+            </div>
+          </div>
 
-        <div>
-          <TodaysSchedule schedule={schedule} deviceLog={deviceLog} />
-        </div>
+          {/* Schedule Section */}
+          <div>
+            <Schedule schedule={schedule} />
+          </div>
 
-        <div>
-          <Schedule schedule={schedule} />
-        </div>
-
-        <div>
-          <DeviceLog deviceLog={deviceLog} />
-        </div>
-
-        
-
-        
-
-        <div className="flex flex-col gap-2 items-start">
-          <h2 className="font-bold text-2xl mb-4">Device Actions</h2>
-        <EnrollButton userId={user.id}/>
-      </div>
-      
+          {/* Device Log Section */}
+          <div>
+            <DeviceLog deviceLog={deviceLog} />
+          </div>
     </div>
   );
 }

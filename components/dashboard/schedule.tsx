@@ -3,6 +3,7 @@
 import type { Tables } from "@/lib/types";
 import { convertUtcDoseTimeToLocal } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 type ScheduleEvent = Tables<"weekly_events">;
 
@@ -72,49 +73,49 @@ export default function Schedule({ schedule}: { schedule: ScheduleEventWithMedic
     }));
 
     return (
-        <div className="rounded border">
-            <div className="flex items-center justify-between p-3">
-                <h3 className="text-lg font-semibold">Weekly Schedule </h3>
-                <button onClick={() => router.push("/auth/profile-setup/schedule")}>
+        <div className="bg-card border rounded-xl shadow-sm">
+            <div className="flex items-center justify-between p-6 border-b">
+                <h3 className="text-lg font-semibold">Weekly Schedule</h3>
+                <Button variant="outline" size="sm" onClick={() => router.push("/auth/profile-setup/schedule")}>
                     Edit Schedule
-                </button>
+                </Button>
             </div>
 
-            <div className="flex flex-col gap-4 p-3">
+            <div className="p-6 space-y-4">
                 {eventsByDay.map((dayData) => (
-                    <div key={dayData.value} className="border rounded p-3">
-                        <div className="font-semibold text-lg mb-2">
+                    <div key={dayData.value} className="border rounded-lg p-4 bg-muted/30">
+                        <div className="font-semibold text-base mb-3 text-foreground">
                             {dayData.label} - {formatDate(dayData.date)}
                         </div>
                         {dayData.events.length === 0 ? (
-                            <div className="text-gray-500 text-sm">No events scheduled</div>
+                            <div className="text-muted-foreground text-sm">No events scheduled</div>
                         ) : (
-                            <div className="flex flex-col gap-2">
+                            <div className="space-y-2">
                                 {dayData.events.map((row) => {
                                     const medication = row.medications && row.medications.length > 0 ? row.medications[0] : null;
                                     return (
-                                        <div key={row.id} className="border rounded p-2 bg-background">
-                                            <div className="flex items-center gap-3">
-                                                <div className="font-medium">
+                                        <div key={row.id} className="border rounded-lg p-3 bg-background">
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                                <div className="font-medium min-w-[80px]">
                                                     {convertUtcDoseTimeToLocal(row.dose_time)}
                                                 </div>
                                                 {medication && (
                                                     <div className="font-semibold">
                                                         {medication.name}
                                                         {medication.brand_name && medication.brand_name !== medication.name && (
-                                                            <span className="text-sm ml-1">
+                                                            <span className="text-sm ml-1 text-muted-foreground">
                                                                 ({medication.brand_name})
                                                             </span>
                                                         )}
                                                         {medication.generic_name && medication.generic_name !== medication.name && (
-                                                            <span className="text-sm ml-1">
+                                                            <span className="text-sm ml-1 text-muted-foreground">
                                                                 - {medication.generic_name}
                                                             </span>
                                                         )}
                                                     </div>
                                                 )}
                                                 {row.description && (
-                                                    <div className="text-sm text-gray-600">
+                                                    <div className="text-sm text-muted-foreground">
                                                         {row.description}
                                                     </div>
                                                 )}

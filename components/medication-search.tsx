@@ -144,18 +144,18 @@ export function MedicationSearch({ value, onChange, onSelect, placeholder = "Sea
       )}
 
       {showResults && searchResults.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 max-h-60 overflow-auto border rounded-md bg-background shadow-lg">
+        <div className="absolute z-50 w-full mt-2 max-h-60 overflow-auto border-2 rounded-lg bg-background shadow-lg">
           <div className="p-1">
             {searchResults.map((medication, index) => (
               <button
                 key={`${medication.name}-${index}`}
                 type="button"
                 onClick={() => handleSelect(medication)}
-                className="w-full text-left p-2 rounded hover:bg-accent transition-colors group"
+                className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors group"
               >
-                <div className="font-medium">{medication.name}</div>
+                <div className="font-semibold text-base">{medication.name}</div>
                 {medication.brandName && medication.genericName && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground mt-1">
                     {medication.brandName === medication.name ? (
                       <div className="flex items-baseline gap-1">
                         <span>Generic:</span>
@@ -199,8 +199,8 @@ export function MedicationSearch({ value, onChange, onSelect, placeholder = "Sea
       )}
 
       {showResults && value.trim().length >= 2 && !isLoading && searchResults.length === 0 && !error && (
-        <div className="absolute z-50 w-full mt-1 border rounded-md bg-background shadow-lg">
-          <div className="p-3 text-sm text-muted-foreground text-center">
+        <div className="absolute z-50 w-full mt-2 border-2 rounded-lg bg-background shadow-lg">
+          <div className="p-4 text-sm text-muted-foreground text-center">
             No medications found
           </div>
         </div>

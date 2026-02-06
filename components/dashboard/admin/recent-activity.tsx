@@ -4,17 +4,17 @@ type Activity = { device: string; action: string; time: string };
 
 export function RecentActivity({ items }: { items: Activity[] }) {
   return (
-    <Card>
+    <Card className="rounded-xl shadow-sm">
       <CardHeader className="flex items-center justify-between">
-        <CardTitle className="text-lg">Recent Activity</CardTitle>
+        <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        {items.length === 0 && <div className="text-sm text-muted-foreground">No recent activity</div>}
+        {items.length === 0 && <div className="text-sm text-muted-foreground text-center py-4">No recent activity</div>}
         <ul className="divide-y">
           {items.map((a, i) => (
-            <li key={i} className="py-3 flex items-center justify-between">
+            <li key={i} className="py-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg px-2 -mx-2">
               <div>
-                <div className="font-medium">{a.device}</div>
+                <div className="font-semibold">{a.device}</div>
                 <div className="text-sm text-muted-foreground">{a.action}</div>
               </div>
               <div className="text-sm text-muted-foreground whitespace-nowrap">{a.time}</div>

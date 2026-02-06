@@ -2,6 +2,10 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { X } from 'lucide-react';
 
 export default function ConnectPatient() {
   const [inputCode, setInputCode] = useState('');
@@ -37,46 +41,61 @@ export default function ConnectPatient() {
 
   return (
     <div className="w-full">
-      <button
+      <Button
         onClick={() => setOpen(true)}
-        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center gap-2"
+        variant="default"
+        size="default"
       >
-        <span>Connect Patient</span>
-      </button>
+        Connect Patient
+      </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
-          <div className="relative z-10 w-full max-w-md bg-background border rounded-lg shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Connect to a Patient</h3>
-              <button
+          <Card className="relative z-10 w-full max-w-md">
+            <CardHeader className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setOpen(false)}
-                className="text-sm px-2 py-1 rounded border hover:bg-muted"
+                className="absolute top-4 right-4"
               >
-                Close
-              </button>
-            </div>
+                <X className="h-4 w-4" />
+              </Button>
+              <CardTitle>Connect to a Patient</CardTitle>
+              <CardDescription>Enter the 6-digit connection code provided by the patient</CardDescription>
+            </CardHeader>
 
-            <form onSubmit={handleConnect} className="flex flex-col gap-4">
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="Enter 6-digit code"
-                className="border p-2 rounded font-mono text-center text-lg"
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value)}
-              />
-              <button
-                disabled={loading || inputCode.length !== 6}
-                className="bg-blue-600 text-white p-2 rounded disabled:opacity-50"
-              >
-                {loading ? 'Connecting...' : 'Connect'}
-              </button>
-              {message && <p className="text-center text-sm font-bold">{message}</p>}
+            <form onSubmit={handleConnect}>
+              <CardContent className="flex flex-col gap-4">
+                <Input
+                  type="text"
+                  maxLength={6}
+                  placeholder="000000"
+                  className="font-mono text-center text-2xl tracking-widest h-16"
+                  value={inputCode}
+                  onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                />
+                {message && (
+                  <p className={`text-center text-sm font-medium ${message.includes('Success') ? 'text-green-600' : 'text-destructive'}`}>
+                    {message}
+                  </p>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button
+                  type="submit"
+                  disabled={loading || inputCode.length !== 6}
+                  className="w-full"
+                  size="lg"
+                >
+                  {loading ? 'Connecting...' : 'Connect'}
+                </Button>
+              </CardFooter>
             </form>
-          </div>
+          </Card>
         </div>
       )}
     </div>
