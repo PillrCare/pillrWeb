@@ -27,8 +27,8 @@ type EventItem = {
   day_of_week: number;
   dose_time: string;
   description?: string | null;
-  medication?: MedicationInfo | null;
-  medicationData?: MedicationData | null;
+  medications?: MedicationInfo[]; // Array of medications (up to 7)
+  medicationData?: MedicationData[]; // Array of existing medication data
 };
 
 const DAYS = [
@@ -97,13 +97,15 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   const [newTime, setNewTime] = useState("");
   const [newDesc, setNewDesc] = useState<string | null>(null);
   const [medicationSearchValue, setMedicationSearchValue] = useState("");
-  const [selectedMedication, setSelectedMedication] = useState<MedicationInfo | null>(null);
+  const [selectedMedications, setSelectedMedications] = useState<MedicationInfo[]>([]); // Array for multiple medications
   const [isDaily, setIsDaily] = useState(false);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   // `userId` is the target user whose schedule we're editing (could be the same).
   const [userId, setUserId] = useState<string | null>(null);
+  
+  const MAX_MEDICATIONS_PER_EVENT = 7;
 
   useEffect(() => {
     let mounted = true;
@@ -157,10 +159,10 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
           // Convert from UTC to local timezone
           const localEvent = utcTimeToLocal(row.day_of_week, utcTime);
           
-          // Get medication data if it exists (medications is an array from the join)
+          // Get medication data array (medications is an array from the join)
           const medicationData = row.medications && row.medications.length > 0 
-            ? row.medications[0] 
-            : null;
+            ? row.medications 
+            : [];
           
           return {
             id: row.id,
@@ -185,18 +187,33 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   }, [router, which_user, supabase]);
 
   async function handleMedicationSelect(medication: MedicationSearchResult) {
+    // Check if we've reached the limit
+    if (selectedMedications.length >= MAX_MEDICATIONS_PER_EVENT) {
+      return;
+    }
+    
+    // Check if medication is already selected
+    if (selectedMedications.some(m => m.name === medication.name)) {
+      setMedicationSearchValue("");
+      return;
+    }
+    
     // When medication is selected, fetch full medication details from API
-    setMedicationSearchValue(medication.name);
+    setMedicationSearchValue("");
     
     try {
       const fullMedicationInfo = await searchMedication(medication.name);
       if (!('message' in fullMedicationInfo)) {
-        // Store the full medication info - it will be saved when the event is confirmed
-        setSelectedMedication(fullMedicationInfo);
+        // Add to the array of selected medications
+        setSelectedMedications([...selectedMedications, fullMedicationInfo]);
       }
     } catch (error) {
       console.error('Failed to fetch medication details:', error);
     }
+  }
+  
+  function removeSelectedMedication(index: number) {
+    setSelectedMedications(selectedMedications.filter((_, i) => i !== index));
   }
 
   function handleMedicationSearchChange(value: string) {
@@ -239,7 +256,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
       day_of_week: day,
       dose_time: newTime,
       description: newDesc,
-      medication: selectedMedication
+      medications: selectedMedications.length > 0 ? [...selectedMedications] : undefined
     }));
 
     setEvents((s) => [...s, ...newEvents]);
@@ -248,19 +265,18 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     setNewTime("");
     setNewDesc(null);
     setMedicationSearchValue("");
-    setSelectedMedication(null);
+    setSelectedMedications([]);
     setIsDaily(false);
     setSelectedDays([]);
   }
 
-  function removeEvent(dayOfWeek: number, doseTime: string, description: string | null, medicationName: string | null) {
+  function removeEvent(dayOfWeek: number, doseTime: string, description: string | null) {
     setEvents((s) => {
       // Find and remove the first matching event
       const index = s.findIndex(e => 
         e.day_of_week === dayOfWeek &&
         e.dose_time === doseTime &&
-        e.description === description &&
-        ((e.medication?.name === medicationName) || (e.medicationData?.name === medicationName) || (!e.medication && !e.medicationData && !medicationName))
+        e.description === description
       );
       if (index !== -1) {
         return s.filter((_, i) => i !== index);
@@ -308,28 +324,29 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
         for (let i = 0; i < events.length; i++) {
           const event = events[i];
           if (insertedEvents && insertedEvents[i]) {
-            // Use medication from event.medication (newly selected) or reconstruct from medicationData (preserved)
-            let medicationToSave: MedicationInfo | null = null;
+            // Get medications from event.medications (newly selected) or reconstruct from medicationData (preserved)
+            let medicationsToSave: MedicationInfo[] = [];
             
-            if (event.medication) {
-              // New medication selected
-              medicationToSave = event.medication;
-            } else if (event.medicationData) {
-              // Preserve existing medication - reconstruct MedicationInfo from MedicationData
-              medicationToSave = {
-                name: event.medicationData.name,
-                brandName: event.medicationData.brand_name || undefined,
-                genericName: event.medicationData.generic_name || undefined,
-                sideEffects: event.medicationData.adverse_reactions 
-                  ? event.medicationData.adverse_reactions.split('\n\n').filter(s => s.trim())
+            if (event.medications && event.medications.length > 0) {
+              // New medications selected
+              medicationsToSave = event.medications;
+            } else if (event.medicationData && event.medicationData.length > 0) {
+              // Preserve existing medications - reconstruct MedicationInfo from MedicationData
+              medicationsToSave = event.medicationData.map(medData => ({
+                name: medData.name,
+                brandName: medData.brand_name || undefined,
+                genericName: medData.generic_name || undefined,
+                sideEffects: medData.adverse_reactions 
+                  ? medData.adverse_reactions.split('\n\n').filter(s => s.trim())
                   : undefined,
-                drugInteractions: event.medicationData.drug_interaction
-                  ? event.medicationData.drug_interaction.split('\n\n').filter(s => s.trim())
+                drugInteractions: medData.drug_interaction
+                  ? medData.drug_interaction.split('\n\n').filter(s => s.trim())
                   : undefined,
-              };
+              }));
             }
             
-            if (medicationToSave) {
+            // Insert all medications for this event
+            for (const medicationToSave of medicationsToSave) {
               const adverseReactionsText = medicationToSave.sideEffects && medicationToSave.sideEffects.length > 0
                 ? medicationToSave.sideEffects.join('\n\n')
                 : null;
@@ -421,14 +438,62 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
             {/* Medication Search */}
             <div className="space-y-2">
-              <Label htmlFor="medication">Medication (optional)</Label>
-              <MedicationSearch
-                value={medicationSearchValue}
-                onChange={handleMedicationSearchChange}
-                onSelect={handleMedicationSelect}
-                placeholder="Search for medication..."
-                className="w-full"
-              />
+              <Label htmlFor="medication">
+                Medications (optional, up to {MAX_MEDICATIONS_PER_EVENT})
+                {selectedMedications.length > 0 && (
+                  <span className="text-muted-foreground font-normal ml-2">
+                    ({selectedMedications.length}/{MAX_MEDICATIONS_PER_EVENT})
+                  </span>
+                )}
+              </Label>
+              {selectedMedications.length < MAX_MEDICATIONS_PER_EVENT ? (
+                <MedicationSearch
+                  value={medicationSearchValue}
+                  onChange={handleMedicationSearchChange}
+                  onSelect={handleMedicationSelect}
+                  placeholder="Search for medication..."
+                  className="w-full"
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground p-2 border rounded-lg bg-muted/30">
+                  Maximum of {MAX_MEDICATIONS_PER_EVENT} medications per event reached
+                </div>
+              )}
+              
+              {/* Display selected medications */}
+              {selectedMedications.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {selectedMedications.map((med, index) => (
+                    <div
+                      key={`${med.name}-${index}`}
+                      className="flex items-center justify-between p-3 bg-muted/50 border rounded-lg"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate">{med.name}</div>
+                        {med.brandName && med.brandName !== med.name && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            Brand: {med.brandName}
+                          </div>
+                        )}
+                        {med.genericName && med.genericName !== med.name && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            Generic: {med.genericName}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSelectedMedication(index)}
+                        className="ml-2 flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Notes/Description */}
@@ -540,43 +605,47 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
                     <div className="font-semibold text-lg mb-3 text-foreground">{dayData.label}</div>
                     <div className="space-y-2">
                       {dayData.events.map((ev, idx) => {
-                        const medicationName: string | null = ev.medicationData?.name || ev.medication?.name || null;
+                        // Get medications from either medicationData (existing) or medications (newly added)
+                        const medications = ev.medicationData && ev.medicationData.length > 0
+                          ? ev.medicationData
+                          : (ev.medications && ev.medications.length > 0
+                              ? ev.medications.map(m => ({
+                                  id: '',
+                                  schedule_id: '',
+                                  name: m.name,
+                                  brand_name: m.brandName || null,
+                                  generic_name: m.genericName || null,
+                                  adverse_reactions: null,
+                                  drug_interaction: null,
+                                }))
+                              : []);
+                        
                         return (
                           <div 
                             key={`${dayData.value}-${idx}-${ev.dose_time}`} 
                             className="flex items-center justify-between p-4 bg-background border rounded-lg hover:shadow-sm transition-shadow"
                           >
-                            <div className="flex items-center gap-4 flex-wrap flex-1 min-w-0">
+                            <div className="flex items-start gap-4 flex-wrap flex-1 min-w-0">
                               <div className="font-semibold text-lg min-w-[100px]">
                                 {formatTimeDisplay(ev.dose_time)}
                               </div>
-                              {ev.medicationData && (
-                                <div className="font-semibold">
-                                  {ev.medicationData.name}
-                                  {ev.medicationData.brand_name && ev.medicationData.brand_name !== ev.medicationData.name && (
-                                    <span className="text-sm ml-1 text-muted-foreground">
-                                      ({ev.medicationData.brand_name})
-                                    </span>
-                                  )}
-                                  {ev.medicationData.generic_name && ev.medicationData.generic_name !== ev.medicationData.name && (
-                                    <span className="text-sm ml-1 text-muted-foreground">
-                                      - {ev.medicationData.generic_name}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {ev.medication && !ev.medicationData && (
-                                <div className="font-semibold">
-                                  {ev.medication.name}
-                                  {ev.medication.brandName && ev.medication.brandName !== ev.medication.name && (
-                                    <span className="text-sm ml-1 text-muted-foreground">
-                                      ({ev.medication.brandName})
-                                    </span>
-                                  )}
-                                  {ev.medication.genericName && ev.medication.genericName !== ev.medication.name && (
-                                    <span className="text-sm ml-1 text-muted-foreground">
-                                      - {ev.medication.genericName}
-                                    </span>
+                              {medications.length > 0 && (
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold">
+                                    {medications.map((med, medIdx) => {
+                                      const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
+                                      return (
+                                        <span key={`${med.name}-${medIdx}`}>
+                                          {medIdx > 0 && <span className="text-muted-foreground">, </span>}
+                                          <span>{displayName}</span>
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                  {medications.length > 1 && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {medications.length} medication{medications.length !== 1 ? 's' : ''}
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -587,8 +656,8 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => removeEvent(ev.day_of_week, ev.dose_time, ev.description ?? null, medicationName ?? null)}
-                              className="ml-4"
+                              onClick={() => removeEvent(ev.day_of_week, ev.dose_time, ev.description ?? null)}
+                              className="ml-4 flex-shrink-0"
                             >
                               <X className="h-4 w-4 mr-1" />
                               Remove
