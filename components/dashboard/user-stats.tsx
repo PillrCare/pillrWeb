@@ -8,11 +8,11 @@ export default function UserStats({ patientStats }: { patientStats: PatientStats
 
   if (!patientStats) {
     return (
-      <div className="rounded border">
-        <div className="flex items-center justify-between p-3">
+      <div className="bg-card border rounded-xl shadow-sm">
+        <div className="flex items-center justify-between p-6 border-b">
           <h3 className="text-lg font-semibold">Your Statistics</h3>
         </div>
-        <div className="p-4 text-sm text-muted-foreground">No statistics available yet</div>
+        <div className="p-6 text-sm text-muted-foreground">No statistics available yet</div>
       </div>
     );
   }
@@ -29,15 +29,15 @@ export default function UserStats({ patientStats }: { patientStats: PatientStats
   };
 
   return (
-    <div className="rounded border">
-      <div className="flex items-center justify-between p-3 border-b">
+    <div className="bg-card border rounded-xl shadow-sm">
+      <div className="flex items-center justify-between p-6 border-b">
         <h3 className="text-lg font-semibold">Your Statistics</h3>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Overall Adherence</p>
-          <p className={`text-2xl font-bold ${getAdherenceColor(adherence)}`}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall Adherence</p>
+          <p className={`text-3xl font-bold ${getAdherenceColor(adherence)}`}>
             {adherence.toFixed(1)}%
           </p>
           <p className="text-xs text-muted-foreground">
@@ -45,51 +45,46 @@ export default function UserStats({ patientStats }: { patientStats: PatientStats
           </p>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Past Week</p>
-          <p className={`text-2xl font-bold ${getAdherenceColor(weeklyAdherence)}`}>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Past Week</p>
+          <p className={`text-3xl font-bold ${getAdherenceColor(weeklyAdherence)}`}>
             {weeklyAdherence.toFixed(1)}%
           </p>
           <p className="text-xs text-muted-foreground">Last 7 days</p>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Past Month</p>
-          <p className={`text-2xl font-bold ${getAdherenceColor(monthlyAdherence)}`}>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Past Month</p>
+          <p className={`text-3xl font-bold ${getAdherenceColor(monthlyAdherence)}`}>
             {monthlyAdherence.toFixed(1)}%
           </p>
           <p className="text-xs text-muted-foreground">Last 30 days</p>
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Missed Doses</p>
-          <p className={`text-2xl font-bold ${(patientStats.missed_doses || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Missed Doses</p>
+          <p className={`text-3xl font-bold ${(patientStats.missed_doses || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
             {patientStats.missed_doses || 0}
           </p>
           <p className="text-xs text-muted-foreground">Total missed</p>
         </div>
       </div>
 
-      <div className="border-t p-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div className="border-t p-6 bg-muted/30">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
           <div>
-            <p className="text-muted-foreground">Total Opens</p>
-            <p className="font-semibold">{patientStats.total_opens || 0}</p>
+            <p className="text-muted-foreground mb-1">Total Opens</p>
+            <p className="text-lg font-semibold">{patientStats.total_opens || 0}</p>
           </div>
       
           <div>
-            <p className="text-muted-foreground">Emergency Accesses</p>
-            <p className="font-semibold">{patientStats.emercency_accesses || 0}</p>
+            <p className="text-muted-foreground mb-1">Emergency Accesses</p>
+            <p className="text-lg font-semibold">{patientStats.emercency_accesses || 0}</p>
           </div>
-          {/* <div>
-            <p className="text-muted-foreground">Enrolled Fingers</p>
-            <p className="font-semibold">{patientStats.total_enrolled_fingers || 0}</p>
-          </div> */}
           <div>
-            <p className="text-muted-foreground">Unauthorized Attempts</p>
-            <p className="font-semibold">{patientStats.failed_searches || 0}</p>
+            <p className="text-muted-foreground mb-1">Unauthorized Attempts</p>
+            <p className="text-lg font-semibold">{patientStats.failed_searches || 0}</p>
           </div>
-          
         </div>
       </div>
     </div>

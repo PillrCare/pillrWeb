@@ -11,6 +11,8 @@ import Schedule from "./schedule";
 import EmergencyUnlockButton from "./emergency-unlock-button";
 import EnrollButton from "./enroll_button";
 import { PatientSearch } from "./admin/patient-search";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import type { Tables } from '@/lib/types';
 
 type DeviceLogRow = Tables<"device_log">;
@@ -189,27 +191,29 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
             </div>
 
             {openPatientId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="absolute inset-0" onClick={() => setOpenPatientId(null)} />
 
-                    <div className="relative z-10 w-full max-w-7xl max-h-[95vh] overflow-hidden bg-background rounded-lg shadow-2xl border mx-4">
+                    <div className="relative z-10 w-full max-w-7xl max-h-[95vh] overflow-hidden bg-background rounded-xl shadow-2xl border">
                         {/* Header */}
-                        <div className="flex justify-between items-center p-6 border-b bg-muted/30">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-6 border-b bg-muted/30">
                             <div>
                                 <h3 className="text-2xl font-bold">Patient Overview</h3>
                                 <p className="text-sm text-muted-foreground mt-1">
                                     {patient?.name || patient?.username}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 {openPatientId && <EmergencyUnlockButton patientId={openPatientId} />}
                                 {openPatientId && <EnrollButton patientId={openPatientId} />}
-                                <button
-                                    className="px-4 py-2 rounded-md border hover:bg-accent transition-colors font-medium"
+                                <Button
+                                    variant="outline"
+                                    size="default"
                                     onClick={() => { setIsEditing(false); setOpenPatientId(null); }}
                                 >
+                                    <X className="h-4 w-4 mr-2" />
                                     Close
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -218,7 +222,7 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                                 {/* Left Sidebar: Patient Info + Stats */}
                                 <div className="lg:col-span-4 space-y-6">
-                                    <div className="bg-card rounded-lg border shadow-sm">
+                                    <div className="bg-card rounded-xl border shadow-sm">
                                         <PatientInfo
                                             patient={patient}
                                             isEditing={isEditing}
@@ -262,7 +266,7 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                                     </div>
 
                                     {patientStats && (
-                                        <div className="bg-card rounded-lg border shadow-sm p-5">
+                                        <div className="bg-card rounded-xl border shadow-sm p-6">
                                             <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                                 <span className="h-2 w-2 rounded-full bg-green-500"></span>
                                                 Statistics
@@ -298,14 +302,14 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                                         </div>
                                     )}
 
-                                    <div className="bg-card rounded-lg border shadow-sm">
+                                    <div className="bg-card rounded-xl border shadow-sm">
                                         <DeviceLog deviceLog={deviceLog} />
                                     </div>
                                 </div>
 
                                 {/* Main Content: Charts, Schedule, and Missed Doses */}
                                 <div className="lg:col-span-8 space-y-6">
-                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border shadow-sm p-6">
+                                    <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border shadow-sm p-6">
                                         <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
@@ -315,7 +319,7 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                                         <Sparkline data={adherenceTrend} />
                                     </div>
 
-                                    <div className="bg-card rounded-lg border shadow-sm p-6">
+                                    <div className="bg-card rounded-xl border shadow-sm p-6">
                                         <div className="flex items-center justify-between mb-4">
                                             <h4 className="text-lg font-semibold flex items-center gap-2">
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -323,12 +327,13 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                                                 </svg>
                                                 Weekly Schedule
                                             </h4>
-                                            <button
-                                                className="text-sm px-4 py-2 rounded-md border bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                                            <Button
+                                                variant="default"
+                                                size="sm"
                                                 onClick={() => setShowScheduleEditor(true)}
                                             >
                                                 Edit Schedule
-                                            </button>
+                                            </Button>
                                         </div>
                                         <Schedule schedule={schedule} />
                                     </div>
@@ -342,17 +347,19 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
             )}
 
             {showScheduleEditor && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="absolute inset-0" onClick={() => setShowScheduleEditor(false)} />
-                    <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden bg-background rounded-lg shadow-2xl border mx-4">
+                    <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-hidden bg-background rounded-xl shadow-2xl border">
                         <div className="flex justify-between items-center p-6 border-b bg-muted/30">
                             <h3 className="text-xl font-bold">Edit Weekly Schedule</h3>
-                            <button
-                                className="px-4 py-2 rounded-md border hover:bg-accent transition-colors font-medium"
+                            <Button
+                                variant="outline"
+                                size="default"
                                 onClick={() => setShowScheduleEditor(false)}
                             >
+                                <X className="h-4 w-4 mr-2" />
                                 Close
-                            </button>
+                            </Button>
                         </div>
                         <div className="overflow-auto max-h-[calc(90vh-88px)] p-6">
                             <ScheduleEditor which_user={openPatientId ?? undefined} />

@@ -91,40 +91,44 @@ export default function TodaysSchedule({ schedule, deviceLog }: { schedule: Sche
     // const events: ScheduleEvent = schedule.filter(row => row.day_of_week === day);
 
     return (
-        <div className="rounded border">
-            <div className="flex items-center justify-between p-3">
-                <h3 className="text-lg font-semibold">Todays Schedule ({dayName})</h3>
+        <div className="bg-card border rounded-xl shadow-sm">
+            <div className="flex items-center justify-between p-6 border-b">
+                <h3 className="text-lg font-semibold">Today's Schedule ({dayName})</h3>
             </div>
 
-            <div className="flex-row justify-between">
+            <div className="p-6 space-y-3">
                 {todaysEvents.length === 0 ? (
-                    <div className="p-2 m-2 text-gray-500">No events scheduled for {dayName}.</div>
+                    <div className="p-4 text-center text-muted-foreground bg-muted/30 rounded-lg">No events scheduled for {dayName}.</div>
                 ) : (
                     todaysEvents.map((row) => {
                         const medication = row.medications && row.medications.length > 0 ? row.medications[0] : null;
                         return (
-                            <div key={row.id} className={`flex-row justify-between border rounded p-2 m-2 ${getEventStatus(row.id)}`}>
-                                <div>
-                                    {convertUtcDoseTimeToLocal(row.dose_time)}
+                            <div key={row.id} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border rounded-lg p-4 transition-all ${getEventStatus(row.id)}`}>
+                                <div className="flex items-center gap-4">
+                                    <div className="font-semibold text-lg min-w-[80px]">
+                                        {convertUtcDoseTimeToLocal(row.dose_time)}
+                                    </div>
+                                    {medication && (
+                                        <div className="font-semibold">
+                                            {medication.name}
+                                            {medication.brand_name && medication.brand_name !== medication.name && (
+                                                <span className="text-sm ml-1 text-muted-foreground">
+                                                    ({medication.brand_name})
+                                                </span>
+                                            )}
+                                            {medication.generic_name && medication.generic_name !== medication.name && (
+                                                <span className="text-sm ml-1 text-muted-foreground">
+                                                    - {medication.generic_name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                                {medication && (
-                                    <div className="font-semibold">
-                                        {medication.name}
-                                        {medication.brand_name && medication.brand_name !== medication.name && (
-                                            <span className="text-sm ml-1">
-                                                ({medication.brand_name})
-                                            </span>
-                                        )}
-                                        {medication.generic_name && medication.generic_name !== medication.name && (
-                                            <span className="text-sm ml-1">
-                                                - {medication.generic_name}
-                                            </span>
-                                        )}
+                                {row.description && (
+                                    <div className="text-sm text-muted-foreground">
+                                        {row.description}
                                     </div>
                                 )}
-                                <div>
-                                    {row.description}
-                                </div>
                             </div>
                         );
                     })

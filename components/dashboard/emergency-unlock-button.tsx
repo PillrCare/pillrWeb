@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { X } from "lucide-react";
 
 interface EmergencyUnlockButtonProps {
     patientId: string;
@@ -54,82 +57,75 @@ export default function EmergencyUnlockButton({ patientId }: EmergencyUnlockButt
 
     return (
         <>
-            <button
-                className="p-2 rounded border bg-destructive hover:bg-primary text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+            <Button
+                variant="destructive"
+                size="default"
                 onClick={openModal}
                 disabled={loading}
             >
                 Emergency Open
-            </button>
+            </Button>
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/50" onClick={() => closeModal()} aria-hidden />
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => closeModal()} aria-hidden />
 
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="modal-title"
-                        className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl p-8 border border-gray-200"
-                    >
-                        <button
-                            type="button"
-                            onClick={closeModal}
-                            disabled={loading}
-                            aria-label="Close dialog"
-                            className="absolute top-4 right-4 inline-flex items-center justify-center w-10 h-10 rounded-full text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="w-6 h-6"
-                                aria-hidden
-                            >
-                                <path d="M6 6l12 12" />
-                                <path d="M6 18L18 6" />
-                            </svg>
-                        </button>
-
-                        <h3 id="modal-title" className="text-3xl font-bold text-red-600 mb-6">
-                            Confirm Emergency Unlock
-                        </h3>
-
-                        <div className="mb-8 p-6 bg-red-50 border-l-4 border-red-500 rounded">
-                            <p className="text-xl text-gray-800 leading-relaxed">
-                                Are you sure you want to emergency open the device? This will unlock it to the next scheduled dose.
-                            </p>
-                        </div>
-
-                        {error ? (
-                            <div className="text-lg text-red-600 mb-6 p-4 bg-red-50 rounded border border-red-200 font-medium">
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <div className="flex justify-center gap-4 pt-4">
-                            <button
+                    <Card className="relative w-full max-w-2xl">
+                        <CardHeader className="relative">
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={closeModal}
                                 disabled={loading}
-                                className="px-8 py-4 text-2xl font-bold rounded-lg shadow-md bg-gray-200 hover:bg-gray-300 disabled:opacity-60 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
+                                aria-label="Close dialog"
+                                className="absolute top-4 right-4"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                            <CardTitle id="modal-title" className="text-2xl text-destructive pr-12">
+                                Confirm Emergency Unlock
+                            </CardTitle>
+                            <CardDescription className="mt-2">
+                                This action will unlock the device to the next scheduled dose.
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent>
+                            <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded-lg">
+                                <p className="text-base leading-relaxed">
+                                    Are you sure you want to emergency open the device? This will unlock it to the next scheduled dose.
+                                </p>
+                            </div>
+
+                            {error ? (
+                                <div className="text-sm text-destructive mb-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20 font-medium">
+                                    {error}
+                                </div>
+                            ) : null}
+                        </CardContent>
+
+                        <CardFooter className="flex justify-center gap-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                onClick={closeModal}
+                                disabled={loading}
                             >
                                 Cancel
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
+                                variant="destructive"
+                                size="lg"
                                 onClick={handleEmergencyUnlock}
                                 disabled={loading}
-                                className="px-8 py-4 text-2xl font-bold rounded-lg shadow-md bg-destructive hover:bg-red-700 text-white disabled:opacity-60 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background"
                             >
                                 {loading ? "Unlocking..." : "Emergency Open"}
-                            </button>
-                        </div>
-                    </div>
+                            </Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             )}
         </>

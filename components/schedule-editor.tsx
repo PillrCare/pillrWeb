@@ -6,6 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import { MedicationSearch } from "@/components/medication-search";
 import type { MedicationSearchResult, MedicationInfo } from "@/lib/medication";
 import { searchMedication } from "@/lib/medication";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { X, Plus, Clock, Calendar } from "lucide-react";
 
 type MedicationData = {
   id: string;
@@ -365,7 +370,11 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   }
 
   if (loading) {
-    return <div>Loading…</div>;
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-muted-foreground">Loading…</div>
+      </div>
+    );
   }
 
   // Group events by day for display
@@ -377,204 +386,243 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   }));
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-8">
-      <h1 className="text-xl font-semibold">Set your medication schedule</h1>
-
-      {/* Add Event Form */}
-      <div className="border rounded p-4 bg-background">
-        <h2 className="text-lg font-semibold mb-4">Add New Event</h2>
-        
-        <div className="flex flex-col gap-4">
-          {/* Time Input */}
-          <div>
-            <label className="block mb-2 font-medium">Time</label>
-            <input
-              type="time"
-              value={newTime}
-              onChange={(e) => setNewTime(e.target.value)}
-              className="w-full p-2 border rounded"
-              required
-            />
-          </div>
-
-          {/* Medication Search */}
-          <div>
-            <label className="block mb-2 font-medium">Medication (optional)</label>
-            <MedicationSearch
-              value={medicationSearchValue}
-              onChange={handleMedicationSearchChange}
-              onSelect={handleMedicationSelect}
-              placeholder="Search for medication..."
-              className="w-full"
-            />
-          </div>
-
-          {/* Notes/Description */}
-          <div>
-            <label className="block mb-2 font-medium">Notes (optional)</label>
-            <input
-              type="text"
-              value={newDesc ?? ""}
-              onChange={(e) => setNewDesc(e.target.value)}
-              placeholder="Additional notes (e.g., With food, morning)"
-              className="w-full p-2 border rounded"
-            />
-          </div>
-
-          {/* Day Selection */}
-          <div>
-            <label className="block mb-3 font-medium">Apply to:</label>
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={handleDailyToggle}
-                className={`
-                  flex items-center gap-3 cursor-pointer p-3 rounded border transition-all text-left
-                  ${isDaily 
-                    ? 'bg-accent border-2 border-foreground font-semibold' 
-                    : 'hover:bg-accent/50 border'
-                  }
-                `}
-              >
-                <div className={`
-                  w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0
-                  ${isDaily ? 'bg-foreground border-foreground' : 'border-foreground/50'}
-                `}>
-                  {isDaily && (
-                    <svg className="w-3 h-3 text-background" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <span className="font-medium">Daily (all days)</span>
-              </button>
-              
-              {!isDaily && (
-                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
-                  {DAYS.map((day) => {
-                    const isSelected = selectedDays.includes(day.value);
-                    return (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => handleDayToggle(day.value)}
-                        className={`
-                          flex items-center gap-3 cursor-pointer p-3 rounded border transition-all
-                          sm:flex-1 sm:min-w-[120px] sm:max-w-[180px]
-                          ${isSelected 
-                            ? 'bg-accent border-2 border-foreground font-semibold shadow-sm' 
-                            : 'hover:bg-accent/50 border hover:border-foreground/50'
-                          }
-                        `}
-                      >
-                        <div className={`
-                          w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0
-                          ${isSelected ? 'bg-foreground border-foreground' : 'border-foreground/50'}
-                        `}>
-                          {isSelected && (
-                            <svg className="w-3 h-3 text-background" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className="text-sm font-medium">{day.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Add Button */}
-          <button
-            onClick={addEvent}
-            disabled={!newTime || (!isDaily && selectedDays.length === 0)}
-            className="p-2 bg-accent border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add Event
-          </button>
-        </div>
+    <div className="flex-1 w-full flex flex-col gap-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">Set Your Medication Schedule</h1>
+        <p className="text-muted-foreground">Add medications and set times for each day of the week</p>
       </div>
 
-      {/* Current Schedule */}
-      <div className="border rounded p-4 bg-background">
-        <h2 className="text-lg font-semibold mb-4">Current Schedule</h2>
-        
-        {events.length === 0 ? (
-          <div className="text-gray-500">No events scheduled. Add an event above to get started.</div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {eventsByDay.map((dayData) => (
-              dayData.events.length > 0 && (
-                <div key={dayData.value} className="border rounded p-3">
-                  <div className="font-semibold mb-2">{dayData.label}</div>
-                  <div className="flex flex-col gap-2">
-                    {dayData.events.map((ev, idx) => {
-                      const medicationName: string | null = ev.medicationData?.name || ev.medication?.name || null;
+      {/* Add Event Form */}
+      <Card className="rounded-xl shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Add New Event
+          </CardTitle>
+          <CardDescription>Create a new medication schedule entry</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-6">
+            {/* Time Input */}
+            <div className="space-y-2">
+              <Label htmlFor="time" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Time
+              </Label>
+              <Input
+                id="time"
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                required
+                className="w-full"
+              />
+            </div>
+
+            {/* Medication Search */}
+            <div className="space-y-2">
+              <Label htmlFor="medication">Medication (optional)</Label>
+              <MedicationSearch
+                value={medicationSearchValue}
+                onChange={handleMedicationSearchChange}
+                onSelect={handleMedicationSelect}
+                placeholder="Search for medication..."
+                className="w-full"
+              />
+            </div>
+
+            {/* Notes/Description */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Input
+                id="notes"
+                type="text"
+                value={newDesc ?? ""}
+                onChange={(e) => setNewDesc(e.target.value)}
+                placeholder="Additional notes (e.g., With food, morning)"
+                className="w-full"
+              />
+            </div>
+
+            {/* Day Selection */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Apply to:
+              </Label>
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="button"
+                  variant={isDaily ? "default" : "outline"}
+                  onClick={handleDailyToggle}
+                  className="w-full justify-start h-auto p-4"
+                >
+                  <div className={`
+                    w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0 mr-3
+                    ${isDaily ? 'bg-primary-foreground border-primary-foreground' : 'border-foreground/50'}
+                  `}>
+                    {isDaily && (
+                      <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="font-medium">Daily (all days)</span>
+                </Button>
+                
+                {!isDaily && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                    {DAYS.map((day) => {
+                      const isSelected = selectedDays.includes(day.value);
                       return (
-                        <div key={`${dayData.value}-${idx}-${ev.dose_time}`} className="flex items-center justify-between p-2 bg-accent rounded">
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <div className="font-medium">{formatTimeDisplay(ev.dose_time)}</div>
-                            {ev.medicationData && (
-                              <div className="font-semibold">
-                                {ev.medicationData.name}
-                                {ev.medicationData.brand_name && ev.medicationData.brand_name !== ev.medicationData.name && (
-                                  <span className="text-sm ml-1">
-                                    ({ev.medicationData.brand_name})
-                                  </span>
-                                )}
-                                {ev.medicationData.generic_name && ev.medicationData.generic_name !== ev.medicationData.name && (
-                                  <span className="text-sm ml-1">
-                                    - {ev.medicationData.generic_name}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {ev.medication && !ev.medicationData && (
-                              <div className="font-semibold">
-                                {ev.medication.name}
-                                {ev.medication.brandName && ev.medication.brandName !== ev.medication.name && (
-                                  <span className="text-sm ml-1">
-                                    ({ev.medication.brandName})
-                                  </span>
-                                )}
-                                {ev.medication.genericName && ev.medication.genericName !== ev.medication.name && (
-                                  <span className="text-sm ml-1">
-                                    - {ev.medication.genericName}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {ev.description && (
-                              <div className="text-sm text-gray-600">{ev.description}</div>
+                        <Button
+                          key={day.value}
+                          type="button"
+                          variant={isSelected ? "default" : "outline"}
+                          onClick={() => handleDayToggle(day.value)}
+                          className="h-auto p-3 flex flex-col items-center gap-2"
+                        >
+                          <div className={`
+                            w-5 h-5 border-2 rounded flex items-center justify-center
+                            ${isSelected ? 'bg-primary-foreground border-primary-foreground' : 'border-foreground/50'}
+                          `}>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
                             )}
                           </div>
-                          <button
-                            className="p-1 bg-destructive text-white rounded text-sm"
-                            onClick={() => removeEvent(ev.day_of_week, ev.dose_time, ev.description ?? null, medicationName ?? null)}
-                          >
-                            Remove
-                          </button>
-                        </div>
+                          <span className="text-sm font-medium">{day.label.slice(0, 3)}</span>
+                        </Button>
                       );
                     })}
                   </div>
-                </div>
-              )
-            ))}
+                )}
+              </div>
+            </div>
+
+            {/* Add Button */}
+            <Button
+              onClick={addEvent}
+              disabled={!newTime || (!isDaily && selectedDays.length === 0)}
+              size="lg"
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Event
+            </Button>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Current Schedule */}
+      <Card className="rounded-xl shadow-sm">
+        <CardHeader>
+          <CardTitle>Current Schedule</CardTitle>
+          <CardDescription>
+            {events.length === 0 
+              ? "No events scheduled yet" 
+              : `${events.length} event${events.length !== 1 ? 's' : ''} scheduled`
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {events.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No events scheduled. Add an event above to get started.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {eventsByDay.map((dayData) => (
+                dayData.events.length > 0 && (
+                  <div key={dayData.value} className="border rounded-lg p-4 bg-muted/30">
+                    <div className="font-semibold text-lg mb-3 text-foreground">{dayData.label}</div>
+                    <div className="space-y-2">
+                      {dayData.events.map((ev, idx) => {
+                        const medicationName: string | null = ev.medicationData?.name || ev.medication?.name || null;
+                        return (
+                          <div 
+                            key={`${dayData.value}-${idx}-${ev.dose_time}`} 
+                            className="flex items-center justify-between p-4 bg-background border rounded-lg hover:shadow-sm transition-shadow"
+                          >
+                            <div className="flex items-center gap-4 flex-wrap flex-1 min-w-0">
+                              <div className="font-semibold text-lg min-w-[100px]">
+                                {formatTimeDisplay(ev.dose_time)}
+                              </div>
+                              {ev.medicationData && (
+                                <div className="font-semibold">
+                                  {ev.medicationData.name}
+                                  {ev.medicationData.brand_name && ev.medicationData.brand_name !== ev.medicationData.name && (
+                                    <span className="text-sm ml-1 text-muted-foreground">
+                                      ({ev.medicationData.brand_name})
+                                    </span>
+                                  )}
+                                  {ev.medicationData.generic_name && ev.medicationData.generic_name !== ev.medicationData.name && (
+                                    <span className="text-sm ml-1 text-muted-foreground">
+                                      - {ev.medicationData.generic_name}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {ev.medication && !ev.medicationData && (
+                                <div className="font-semibold">
+                                  {ev.medication.name}
+                                  {ev.medication.brandName && ev.medication.brandName !== ev.medication.name && (
+                                    <span className="text-sm ml-1 text-muted-foreground">
+                                      ({ev.medication.brandName})
+                                    </span>
+                                  )}
+                                  {ev.medication.genericName && ev.medication.genericName !== ev.medication.name && (
+                                    <span className="text-sm ml-1 text-muted-foreground">
+                                      - {ev.medication.genericName}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {ev.description && (
+                                <div className="text-sm text-muted-foreground">{ev.description}</div>
+                              )}
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => removeEvent(ev.day_of_week, ev.dose_time, ev.description ?? null, medicationName ?? null)}
+                              className="ml-4"
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Action Buttons */}
-      <div className="w-full flex justify-left">
-        <button className="p-2 bg-accent border rounded" onClick={saveAndContinue} disabled={saving}>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button 
+          size="lg" 
+          onClick={saveAndContinue} 
+          disabled={saving}
+          className="flex-1"
+        >
           {saving ? "Saving…" : "Save and Continue"}
-        </button>
-        <button className="p-2 ml-2 bg-destructive border rounded" onClick={() => router.push(path)}>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="lg" 
+          onClick={() => router.push(path)}
+          className="flex-1"
+        >
           Skip for now
-        </button>
+        </Button>
       </div>
     </div>
   );

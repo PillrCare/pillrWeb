@@ -75,30 +75,23 @@ export default async function DashboardPatient() {
   const patients = relationships?.map((r: any) => r.profiles).filter((p: any) => p != null) ?? [];
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-        <div className="w-full">
-          <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex-down gap-3 items-center">
-            <h2 className="font-bold text-2xl">{profile?.username ?? "No username"}</h2>
-            <h4 className="font-semibold text-2xs mb-2">{profile?.user_type ?? "No role"}</h4>
+    <div className="flex-1 w-full flex flex-col gap-6">
+        {/* Header Card */}
+        <div className="w-full bg-card border rounded-xl shadow-sm p-6">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-3xl font-bold">{profile?.username ?? "No username"}</h1>
+            <p className="text-sm text-muted-foreground capitalize">{profile?.user_type ?? "No role"}</p>
           </div>
         </div>
-{/* 
-        <div className="flex flex-col gap-2 items-start">
-          <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-          <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-            {JSON.stringify(profile, null, 2)}
-          </pre>
-        </div> */}
 
-        <div className="w-full">
-          <div className="w-full flex justify-between items-center">
-            <h2 className="font-bold text-2xl mb-4">Your patients</h2>
-            <div>
-              <ConnectPatient/>
-            </div>
+        {/* Patients Section */}
+        <div className="w-full bg-card border rounded-xl shadow-sm p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 className="text-2xl font-semibold">Your Patients</h2>
+            <ConnectPatient/>
           </div>
+          <PatientView initialPatients={patients}/>
         </div>
-        <PatientView initialPatients={patients}/>
       </div>
   );
 }

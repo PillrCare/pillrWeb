@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { X } from 'lucide-react';
 
 export default function GenerateCode() {
   const [code, setCode] = useState<string | null>(null);
@@ -40,47 +43,60 @@ export default function GenerateCode() {
 
   return (
     <div className="w-full">
-      <button
+      <Button
         onClick={() => setOpen(true)}
-        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+        variant="default"
+        size="default"
       >
         Connect Caregiver
-      </button>
+      </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
-          <div className="relative z-10 w-full max-w-md bg-background border rounded-lg shadow-xl p-6 text-center space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">Your Connection Code</h3>
-              <button
+          <Card className="relative z-10 w-full max-w-md text-center">
+            <CardHeader className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setOpen(false)}
-                className="text-sm px-2 py-1 rounded border hover:bg-muted"
+                className="absolute top-4 right-4"
               >
-                Close
-              </button>
-            </div>
+                <X className="h-4 w-4" />
+              </Button>
+              <CardTitle>Your Connection Code</CardTitle>
+              <CardDescription>Share this code with your caregiver to connect</CardDescription>
+            </CardHeader>
 
-            {code ? (
-              <>
-                <div className="text-4xl font-mono tracking-widest font-bold my-2 text-blue-600">
-                  {code}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Expires in: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                </p>
-                <button
+            <CardContent className="space-y-4">
+              {code ? (
+                <>
+                  <div className="text-5xl font-mono tracking-widest font-bold my-4 text-primary">
+                    {code}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Expires in: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                  </p>
+                </>
+              ) : (
+                <p className="text-muted-foreground">Loading code...</p>
+              )}
+            </CardContent>
+
+            {code && (
+              <CardFooter>
+                <Button
                   onClick={generate}
-                  className="mt-2 text-sm underline text-muted-foreground"
+                  variant="outline"
+                  className="w-full"
                 >
                   Generate New Code
-                </button>
-              </>
-            ) : (
-              <p>Loading code...</p>
+                </Button>
+              </CardFooter>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </div>

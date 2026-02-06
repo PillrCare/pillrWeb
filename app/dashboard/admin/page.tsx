@@ -183,29 +183,32 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
+      {/* Header */}
+      <div className="bg-card border rounded-xl shadow-sm p-6">
+        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
         <p className="text-sm text-muted-foreground">System overview and analytics</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* {JSON.stringify(patients)} */}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Patients" value={patients?.length || 0} subtitle={`${patientsWithData} with active devices`} />
         <StatCard title="Active Caregivers" value={activeCaregivers?.length || 0} subtitle="All active" />
-
         <StatCard title="Avg Adherence" value={`${avgAdherence}%`} subtitle={patientsWithData > 0 ? `Based on ${patientsWithData} patients` : "No data yet"} subtitleClassName={avgAdherence >= 85 ? "text-green-600" : "text-amber-600"} />
         <StatCard title="Total Missed Doses" value={totalMissedDoses} subtitle={totalMissedDoses > 0 ? "Across all patients" : "All on track"} subtitleClassName={totalMissedDoses > 5 ? "text-red-600" : totalMissedDoses > 0 ? "text-amber-600" : "text-green-600"} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SimpleBarChart title="Weekly Adherence Overview" data={weeklyData} />
         <SimplePieChart title="Adherence Distribution" slices={slices} />
       </div>
 
+      {/* Recent Activity */}
       <RecentActivity items={activity} />
 
-      <div className="w-full">
-        <h2 className="font-bold text-2xl mb-4">Directory</h2>
+      {/* Directory */}
+      <div className="bg-card border rounded-xl shadow-sm p-6">
+        <h2 className="text-2xl font-semibold mb-6">Directory</h2>
         <PatientView
           initialPatients={agencyProfiles || []}
           showRoleFilters={true}
