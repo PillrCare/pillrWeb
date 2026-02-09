@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Tables } from "@/lib/types";
 import { convertUtcDoseTimeToLocal, getLocalDateFromUtcDoseTime } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { ImageViewer } from "@/components/dashboard/image-viewer";
 
 type MedicationData = {
   id: string;
@@ -88,8 +89,6 @@ export default function TodaysSchedule({ schedule, deviceLog }: { schedule: Sche
         }
     };
 
-    // const events: ScheduleEvent = schedule.filter(row => row.day_of_week === day);
-
     return (
         <div className="bg-card border rounded-xl shadow-sm">
             <div className="flex items-center justify-between p-6 border-b">
@@ -103,30 +102,37 @@ export default function TodaysSchedule({ schedule, deviceLog }: { schedule: Sche
                     todaysEvents.map((row) => {
                         const medications = row.medications && row.medications.length > 0 ? row.medications : [];
                         return (
-                            <div key={row.id} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border rounded-lg p-4 transition-all ${getEventStatus(row.id)}`}>
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                    <div className="font-semibold text-lg min-w-[80px]">
-                                        {convertUtcDoseTimeToLocal(row.dose_time)}
+                            <div key={row.id} className={`flex flex-col gap-3 border rounded-lg p-4 transition-all ${getEventStatus(row.id)}`}>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                        <div className="font-semibold text-lg min-w-[80px]">
+                                            {convertUtcDoseTimeToLocal(row.dose_time)}
+                                        </div>
+                                        {medications.length > 0 && (
+                                            <div className="font-semibold flex-1 min-w-0">
+                                                {medications.map((med, idx) => {
+                                                    const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
+                                                    return (
+                                                        <span key={`${med.id || med.name}-${idx}`}>
+                                                            {idx > 0 && <span className="text-muted-foreground">, </span>}
+                                                            <span>{displayName}</span>
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-                                    {medications.length > 0 && (
-                                        <div className="font-semibold flex-1 min-w-0">
-                                            {medications.map((med, idx) => {
-                                                const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
-                                                return (
-                                                    <span key={`${med.id || med.name}-${idx}`}>
-                                                        {idx > 0 && <span className="text-muted-foreground">, </span>}
-                                                        <span>{displayName}</span>
-                                                    </span>
-                                                );
-                                            })}
+                                    {row.description && (
+                                        <div className="text-sm text-muted-foreground">
+                                            {row.description}
+                                        </div>
+                                    )}
+                                    {row.image_url && (
+                                        <div className="flex-shrink-0">
+                                            <ImageViewer imageUrl={row.image_url} alt="Event image" thumbnailSize="sm" />
                                         </div>
                                     )}
                                 </div>
-                                {row.description && (
-                                    <div className="text-sm text-muted-foreground">
-                                        {row.description}
-                                    </div>
-                                )}
                             </div>
                         );
                     })

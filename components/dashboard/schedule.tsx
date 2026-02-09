@@ -4,6 +4,7 @@ import type { Tables } from "@/lib/types";
 import { convertUtcDoseTimeToLocal } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ImageViewer } from "@/components/dashboard/image-viewer";
 
 type ScheduleEvent = Tables<"weekly_events">;
 
@@ -95,28 +96,35 @@ export default function Schedule({ schedule}: { schedule: ScheduleEventWithMedic
                                     const medications = row.medications && row.medications.length > 0 ? row.medications : [];
                                     return (
                                         <div key={row.id} className="border rounded-lg p-3 bg-background">
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                                                <div className="font-medium min-w-[80px]">
-                                                    {convertUtcDoseTimeToLocal(row.dose_time)}
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                                    <div className="font-medium min-w-[80px]">
+                                                        {convertUtcDoseTimeToLocal(row.dose_time)}
+                                                    </div>
+                                                    {medications.length > 0 && (
+                                                        <div className="font-semibold flex-1">
+                                                            {medications.map((med, idx) => {
+                                                                const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
+                                                                return (
+                                                                    <span key={`${med.id || med.name}-${idx}`}>
+                                                                        {idx > 0 && <span className="text-muted-foreground">, </span>}
+                                                                        <span>{displayName}</span>
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                    {row.description && (
+                                                        <div className="text-sm text-muted-foreground">
+                                                            {row.description}
+                                                        </div>
+                                                    )}
+                                                    {row.image_url && (
+                                                        <div className="flex-shrink-0">
+                                                            <ImageViewer imageUrl={row.image_url} alt="Event image" thumbnailSize="md" />
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {medications.length > 0 && (
-                                                    <div className="font-semibold flex-1">
-                                                        {medications.map((med, idx) => {
-                                                            const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
-                                                            return (
-                                                                <span key={`${med.id || med.name}-${idx}`}>
-                                                                    {idx > 0 && <span className="text-muted-foreground">, </span>}
-                                                                    <span>{displayName}</span>
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                                {row.description && (
-                                                    <div className="text-sm text-muted-foreground">
-                                                        {row.description}
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     );
