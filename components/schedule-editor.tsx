@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Plus, Clock, Calendar } from "lucide-react";
+import { X, Plus, Clock, Calendar, Image as ImageIcon } from "lucide-react";
+import { ImageViewer } from "@/components/dashboard/image-viewer";
 
 type MedicationData = {
   id: string;
@@ -27,6 +28,8 @@ type EventItem = {
   day_of_week: number;
   dose_time: string;
   description?: string | null;
+  image_url?: string | null;
+  imageFile?: File | null; // Temporary file for new events
   medications?: MedicationInfo[]; // Array of medications (up to 7)
   medicationData?: MedicationData[]; // Array of existing medication data
 };
@@ -96,6 +99,8 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   const [events, setEvents] = useState<EventItem[]>([]);
   const [newTime, setNewTime] = useState("");
   const [newDesc, setNewDesc] = useState<string | null>(null);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [medicationSearchValue, setMedicationSearchValue] = useState("");
   const [selectedMedications, setSelectedMedications] = useState<MedicationInfo[]>([]); // Array for multiple medications
   const [isDaily, setIsDaily] = useState(false);
@@ -132,6 +137,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
           day_of_week, 
           dose_time, 
           description,
+          image_url,
           medications (
             id,
             schedule_id,
@@ -153,6 +159,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
             day_of_week: number;
             dose_time: string | number | null;
             description?: string | null;
+            image_url?: string | null;
             medications?: MedicationData[] | null;
           };
           const utcTime = typeof row.dose_time === "string" ? row.dose_time : String(row.dose_time);
@@ -169,6 +176,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
             day_of_week: localEvent.day_of_week,
             dose_time: localEvent.dose_time,
             description: row.description ?? null,
+            image_url: row.image_url ?? null,
             medicationData: medicationData,
           };
         });
@@ -216,6 +224,67 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     setSelectedMedications(selectedMedications.filter((_, i) => i !== index));
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB');
+      return;
+    }
+
+    setNewImageFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeSelectedImage() {
+    setNewImageFile(null);
+    setNewImagePreview(null);
+  }
+
+  async function uploadImageToStorage(userId: string, eventId: string, file: File): Promise<string | null> {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${eventId}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        return null;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('event-images')
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    }
+  }
+
   function handleMedicationSearchChange(value: string) {
     // Update search value as user types
     setMedicationSearchValue(value);
@@ -252,10 +321,13 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     }
 
     // Create events for each selected day
+    // If an image is selected, we'll store the file and upload it when saving
     const newEvents = daysToAdd.map(day => ({
       day_of_week: day,
       dose_time: newTime,
       description: newDesc,
+      imageFile: newImageFile || undefined, // Store file for later upload
+      image_url: newImagePreview || null, // Use preview as temporary URL for display
       medications: selectedMedications.length > 0 ? [...selectedMedications] : undefined
     }));
 
@@ -264,6 +336,8 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     // Reset form
     setNewTime("");
     setNewDesc(null);
+    setNewImageFile(null);
+    setNewImagePreview(null);
     setMedicationSearchValue("");
     setSelectedMedications([]);
     setIsDaily(false);
@@ -291,94 +365,124 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
     try {
       const { error: delError } = await supabase.from("weekly_events").delete().eq("user_id", userId);
-      if (delError) console.error("delete error", delError);
+      if (delError) {
+        console.error("delete error", delError);
+        setSaving(false);
+        return;
+      }
 
       const payload = events.map((e) => {
-        // Convert from local timezone to UTC before saving
         const utcEvent = localTimeToUTC(e.day_of_week, e.dose_time);
         return {
           user_id: userId,
           day_of_week: utcEvent.day_of_week,
           dose_time: utcEvent.dose_time,
           description: e.description,
+          image_url: e.imageFile ? null : (e.image_url || null),
         };
       });
 
-      if (payload.length > 0) {
-        // Insert events and get back the IDs
-        const { data: insertedEvents, error: insertError } = await supabase
-          .from("weekly_events")
-          .insert(payload)
-          .select("id");
+      if (payload.length === 0) {
+        setSaving(false);
+        router.push(path);
+        return;
+      }
 
-        if (insertError) {
-          console.error("insert error", insertError);
+      // Insert events first to get real event IDs
+      const { data: insertedEvents, error: insertError } = await supabase
+        .from("weekly_events")
+        .insert(payload)
+        .select("id");
+
+      if (insertError) {
+        console.error("insert error", insertError);
+        setSaving(false);
+        return;
+      }
+
+      if (!insertedEvents || insertedEvents.length === 0) {
+        console.error("No events were inserted");
+        setSaving(false);
+        return;
+      }
+
+      // Upload images using real event IDs, then update events with URLs
+      const updatePromises = events.map(async (event, index) => {
+        if (!event.imageFile || !insertedEvents[index]) {
           return;
         }
 
-        // Now insert medications for events that have medication info
-        // Note: Since we delete all events and re-insert, medications are cascade deleted,
-        // so we only need to insert medications for events that have them (either new or preserved)
-        const medicationsToInsert = [];
+        const insertedEvent = insertedEvents[index];
+        const uploadedUrl = await uploadImageToStorage(userId, insertedEvent.id, event.imageFile);
         
-        for (let i = 0; i < events.length; i++) {
-          const event = events[i];
-          if (insertedEvents && insertedEvents[i]) {
-            // Get medications from event.medications (newly selected) or reconstruct from medicationData (preserved)
-            let medicationsToSave: MedicationInfo[] = [];
-            
-            if (event.medications && event.medications.length > 0) {
-              // New medications selected
-              medicationsToSave = event.medications;
-            } else if (event.medicationData && event.medicationData.length > 0) {
-              // Preserve existing medications - reconstruct MedicationInfo from MedicationData
-              medicationsToSave = event.medicationData.map(medData => ({
-                name: medData.name,
-                brandName: medData.brand_name || undefined,
-                genericName: medData.generic_name || undefined,
-                sideEffects: medData.adverse_reactions 
-                  ? medData.adverse_reactions.split('\n\n').filter(s => s.trim())
-                  : undefined,
-                drugInteractions: medData.drug_interaction
-                  ? medData.drug_interaction.split('\n\n').filter(s => s.trim())
-                  : undefined,
-              }));
-            }
-            
-            // Insert all medications for this event
-            for (const medicationToSave of medicationsToSave) {
-              const adverseReactionsText = medicationToSave.sideEffects && medicationToSave.sideEffects.length > 0
-                ? medicationToSave.sideEffects.join('\n\n')
-                : null;
-              const drugInteractionText = medicationToSave.drugInteractions && medicationToSave.drugInteractions.length > 0
-                ? medicationToSave.drugInteractions.join('\n\n')
-                : null;
+        if (uploadedUrl) {
+          const { error: updateError } = await supabase
+            .from("weekly_events")
+            .update({ image_url: uploadedUrl })
+            .eq("id", insertedEvent.id);
 
-              medicationsToInsert.push({
-                schedule_id: insertedEvents[i].id,
-                name: medicationToSave.name,
-                brand_name: medicationToSave.brandName || null,
-                generic_name: medicationToSave.genericName || null,
-                adverse_reactions: adverseReactionsText,
-                drug_interaction: drugInteractionText,
-              });
-            }
+          if (updateError) {
+            console.error(`Failed to update image_url for event ${insertedEvent.id}:`, updateError);
           }
         }
+      });
 
-        // Insert medications if any
-        if (medicationsToInsert.length > 0) {
-          const { error: medicationError } = await supabase
-            .from("medications")
-            .insert(medicationsToInsert);
+      await Promise.all(updatePromises);
+
+      // Insert medications for events that have medication info
+      const medicationsToInsert = [];
+      
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        if (insertedEvents && insertedEvents[i]) {
+          let medicationsToSave: MedicationInfo[] = [];
           
-          if (medicationError) {
-            console.error("medication insert error", medicationError);
+          if (event.medications && event.medications.length > 0) {
+            medicationsToSave = event.medications;
+          } else if (event.medicationData && event.medicationData.length > 0) {
+            medicationsToSave = event.medicationData.map(medData => ({
+              name: medData.name,
+              brandName: medData.brand_name || undefined,
+              genericName: medData.generic_name || undefined,
+              sideEffects: medData.adverse_reactions 
+                ? medData.adverse_reactions.split('\n\n').filter(s => s.trim())
+                : undefined,
+              drugInteractions: medData.drug_interaction
+                ? medData.drug_interaction.split('\n\n').filter(s => s.trim())
+                : undefined,
+            }));
+          }
+          
+          for (const medicationToSave of medicationsToSave) {
+            const adverseReactionsText = medicationToSave.sideEffects && medicationToSave.sideEffects.length > 0
+              ? medicationToSave.sideEffects.join('\n\n')
+              : null;
+            const drugInteractionText = medicationToSave.drugInteractions && medicationToSave.drugInteractions.length > 0
+              ? medicationToSave.drugInteractions.join('\n\n')
+              : null;
+
+            medicationsToInsert.push({
+              schedule_id: insertedEvents[i].id,
+              name: medicationToSave.name,
+              brand_name: medicationToSave.brandName || null,
+              generic_name: medicationToSave.genericName || null,
+              adverse_reactions: adverseReactionsText,
+              drug_interaction: drugInteractionText,
+            });
           }
         }
       }
 
-      console.log("saved events", payload);
+      if (medicationsToInsert.length > 0) {
+        const { error: medicationError } = await supabase
+          .from("medications")
+          .insert(medicationsToInsert);
+        
+        if (medicationError) {
+          console.error("medication insert error", medicationError);
+        }
+      }
+
     } finally {
       setSaving(false);
     }
@@ -507,6 +611,47 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
                 placeholder="Additional notes (e.g., With food, morning)"
                 className="w-full"
               />
+            </div>
+
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="image" className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Image (optional)
+              </Label>
+              {!newImagePreview ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="w-full"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative w-full max-w-md">
+                    <img
+                      src={newImagePreview}
+                      alt="Preview"
+                      className="w-full h-auto rounded-lg border-2 border-input object-cover max-h-64"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={removeSelectedImage}
+                      className="absolute top-2 right-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {newImageFile?.name} ({(newImageFile?.size ? (newImageFile.size / 1024).toFixed(1) : 0)} KB)
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Day Selection */}
@@ -651,6 +796,11 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
                               )}
                               {ev.description && (
                                 <div className="text-sm text-muted-foreground">{ev.description}</div>
+                              )}
+                              {ev.image_url && (
+                                <div className="flex-shrink-0">
+                                  <ImageViewer imageUrl={ev.image_url} alt="Event image" thumbnailSize="sm" />
+                                </div>
                               )}
                             </div>
                             <Button
