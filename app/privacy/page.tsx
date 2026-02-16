@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -96,6 +97,12 @@ export default function PrivacyPolicyPage() {
             <p>
               When you opt out, we will stop sending SMS messages immediately. Your phone number may be retained in our records for a reasonable period to ensure we honor your opt-out request and for legal compliance purposes, but it will not be used for sending messages.
             </p>
+            <p>
+              To opt back into SMS notifications after opting out, you can reply "START" to any message from us, or re-enable SMS notifications in your account settings.
+            </p>
+            <p>
+              For help with SMS notifications, reply "HELP" to any message from us, or contact us through our <Link href="/contact" className="text-primary hover:underline">contact form</Link>.
+            </p>
           </div>
 
           <div>
@@ -109,7 +116,10 @@ export default function PrivacyPolicyPage() {
               <li>Important service updates or alerts (sent infrequently)</li>
             </ul>
             <p>
-              Standard message and data rates may apply. Message frequency depends on your medication schedule. You can control notification preferences through your account settings.
+              Message frequency varies depending on your medication schedule. Standard message and data rates may apply. You can control notification preferences through your account settings.
+            </p>
+            <p>
+              Your wireless carrier is not liable for delayed or undelivered messages. Messages are sent on a best-effort basis, and delivery is not guaranteed.
             </p>
           </div>
 
@@ -153,6 +163,12 @@ export default function PrivacyPolicyPage() {
             </ul>
             <p>
               To exercise these rights, please contact us using the information provided at the end of this policy.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-muted-foreground">
+              For detailed SMS terms and conditions, including message types, opt-out procedures, and carrier information, please see our <Link href="/terms-and-conditions" className="text-primary hover:underline">SMS Terms and Conditions</Link>.
             </p>
           </div>
         </CardContent>
@@ -266,8 +282,8 @@ export default function PrivacyPolicyPage() {
             If you have any questions about this Privacy Policy or our data practices, please contact us:
           </p>
           <p>
-            <strong>Email:</strong> <a href="/contact" className="text-primary hover:underline">Contact Us</a><br />
-            <strong>Website:</strong> <a href="/contact" className="text-primary hover:underline">Contact Form</a>
+            <strong>Email:</strong> <Link href="/contact" className="text-primary hover:underline">Contact Us</Link><br />
+            <strong>Website:</strong> <Link href="/contact" className="text-primary hover:underline">Contact Form</Link>
           </p>
         </CardContent>
       </Card>

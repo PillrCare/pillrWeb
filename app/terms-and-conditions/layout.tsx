@@ -4,7 +4,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 
-export default function PrivacyLayout({
+export default function TermsAndConditionsLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -21,7 +21,6 @@ export default function PrivacyLayout({
               <Link href={"/dashboard"} className="font-semibold">Dashboard</Link>
               <Link href={"/contact"} className="font-semibold">Contact Us</Link>
               <Link href={"/privacy"} className="font-semibold">Privacy Policy</Link>
-              <Link href={"/terms-and-conditions"} className="font-semibold">Terms & Conditions</Link>
               {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
             </div>
           </div>
