@@ -43,6 +43,9 @@ export default function ProtectedLayout({
           <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
             Privacy Policy
           </Link>
+          <Link href="/terms-and-conditions" className="text-muted-foreground hover:text-foreground transition-colors">
+            Terms & Conditions
+          </Link>
           <Link href="/dashboard/sms-preferences" className="text-muted-foreground hover:text-foreground transition-colors">
             SMS Preferences
           </Link>

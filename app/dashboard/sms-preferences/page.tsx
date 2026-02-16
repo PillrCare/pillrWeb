@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 function SMSPreferencesClient() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -223,6 +224,59 @@ function SMSPreferencesClient() {
                 {success}
               </div>
             )}
+
+            {/* SMS Terms and Conditions */}
+            <div className="border-t pt-6 space-y-4">
+              <h3 className="font-semibold text-sm">SMS Terms and Conditions</h3>
+              
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <div>
+                  <p className="font-medium text-foreground mb-1">Message Types:</p>
+                  <p>By opting into SMS notifications, you will receive:</p>
+                  <ul className="list-disc list-inside ml-2 mt-1 space-y-1">
+                    <li>Medication reminder messages approximately 15 minutes before each scheduled dose</li>
+                    <li>A welcome message when you first opt in</li>
+                    <li>Important service updates or alerts (sent infrequently)</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-medium text-foreground mb-1">Opt-Out and Opt-In:</p>
+                  <p>You can opt out at any time by replying "STOP" to any message. To opt back in, reply "START" to any message from us, or re-enable SMS notifications in your account settings.</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-foreground mb-1">Get Help:</p>
+                  <p>For help, reply "HELP" to any message from us, or contact us through our <Link href="/contact" className="text-primary hover:underline">contact form</Link>.</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-foreground mb-1">Message Frequency:</p>
+                  <p>Message frequency varies depending on your medication schedule.</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-foreground mb-1">Rates and Charges:</p>
+                  <p>Standard message and data rates may apply.</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-foreground mb-1">Carrier Liability:</p>
+                  <p>Your wireless carrier is not liable for delayed or undelivered messages. Messages are sent on a best-effort basis, and delivery is not guaranteed.</p>
+                </div>
+
+                <div>
+                  <p className="font-medium text-foreground mb-1">Privacy:</p>
+                  <p>For more information about how we handle your phone number and SMS data, please review our <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <Link href="/terms-and-conditions" className="text-sm text-primary hover:underline font-medium">
+                  View Full SMS Terms and Conditions →
+                </Link>
+              </div>
+            </div>
           </CardContent>
 
           <CardFooter className="flex justify-end gap-3">
