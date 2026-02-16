@@ -38,6 +38,7 @@ export default function Home() {
             <div className="flex gap-5 items-center">
               <Link href={"/dashboard"} className="font-semibold">Dashboard</Link>
               <Link href={"/contact"} className="font-semibold">Contact Us</Link>
+              <Link href={"/privacy"} className="font-semibold">Privacy Policy</Link>
               {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
             </div>
           </div>
@@ -103,6 +104,7 @@ export default function Home() {
             </a>
             2025{" "}
           </p>
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
           <ThemeSwitcher />
         </footer>
       </div>

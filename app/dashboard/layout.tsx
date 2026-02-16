@@ -40,6 +40,9 @@ export default function ProtectedLayout({
             </a>
             {" 2025"}
           </p>
+          <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+            Privacy Policy
+          </Link>
           <Link href="/dashboard/sms-preferences" className="text-muted-foreground hover:text-foreground transition-colors">
             SMS Preferences
           </Link>
