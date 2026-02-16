@@ -127,6 +127,9 @@ export default function PrivacyPolicyPage() {
             <p>
               We do not share your phone number with advertisers or marketing companies.
             </p>
+            <p className="font-semibold mt-4">
+              All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.
+            </p>
           </div>
 
           <div>
@@ -206,6 +209,9 @@ export default function PrivacyPolicyPage() {
             <li><strong>Legal Requirements:</strong> We may disclose information if required by law or in response to valid legal requests</li>
             <li><strong>Business Transfers:</strong> In the event of a merger, acquisition, or sale of assets, your information may be transferred</li>
           </ul>
+          <p className="font-semibold mt-4">
+            All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.
+          </p>
         </CardContent>
       </Card>
 
