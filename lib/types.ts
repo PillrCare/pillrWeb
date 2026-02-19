@@ -175,12 +175,17 @@ export type Database = {
       device_log: {
         Row: {
           clear_event: boolean | null
+          denial_reason: string | null
           device_id: string
           e_unlock: boolean | null
           enroll_event: boolean | null
           enroll_id: number | null
           enroll_success: boolean | null
+          error_code: string | null
+          error_message: string | null
           event_schedule_id: string | null
+          event_type: string | null
+          fingerprint_id: number | null
           id: number
           is_in_window: boolean | null
           search_event: boolean | null
@@ -197,12 +202,17 @@ export type Database = {
         }
         Insert: {
           clear_event?: boolean | null
+          denial_reason?: string | null
           device_id: string
           e_unlock?: boolean | null
           enroll_event?: boolean | null
           enroll_id?: number | null
           enroll_success?: boolean | null
+          error_code?: string | null
+          error_message?: string | null
           event_schedule_id?: string | null
+          event_type?: string | null
+          fingerprint_id?: number | null
           id?: number
           is_in_window?: boolean | null
           search_event?: boolean | null
@@ -219,12 +229,17 @@ export type Database = {
         }
         Update: {
           clear_event?: boolean | null
+          denial_reason?: string | null
           device_id?: string
           e_unlock?: boolean | null
           enroll_event?: boolean | null
           enroll_id?: number | null
           enroll_success?: boolean | null
+          error_code?: string | null
+          error_message?: string | null
           event_schedule_id?: string | null
+          event_type?: string | null
+          fingerprint_id?: number | null
           id?: number
           is_in_window?: boolean | null
           search_event?: boolean | null
