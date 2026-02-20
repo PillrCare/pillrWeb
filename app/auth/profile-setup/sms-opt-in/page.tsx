@@ -12,7 +12,7 @@ export default async function SMSOptInPage() {
     redirect("/auth/login");
   }
 
-  // Redirect to SMS preferences page
-  redirect("/dashboard/sms-preferences?returnTo=/auth/profile-setup/schedule");
+  // Redirect to SMS preferences page, then to dashboard
+  redirect("/dashboard/sms-preferences");
 }
 
