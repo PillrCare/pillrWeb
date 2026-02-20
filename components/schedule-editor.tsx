@@ -209,17 +209,42 @@ export default function ScheduleEditor({ which_user, path = "/dashboard", onSave
       return;
     }
     
-    // When medication is selected, fetch full medication details from API
+    // When medication is selected, use the exact medication from search results
+    // and fetch additional details (side effects, interactions) if needed
     setMedicationSearchValue("");
     
+    // Start with the medication data from the search results (this is the exact one clicked)
+    const baseMedicationInfo: MedicationInfo = {
+      name: medication.name,
+      brandName: medication.brandName,
+      genericName: medication.genericName,
+    };
+    
     try {
+      // Try to fetch full details for side effects and interactions
+      // But always use the medication name/brand/generic from the search result
       const fullMedicationInfo = await searchMedication(medication.name);
       if (!('message' in fullMedicationInfo)) {
-        // Add to the array of selected medications
-        setSelectedMedications([...selectedMedications, fullMedicationInfo]);
+        // Use the search result's name/brand/generic (the exact one clicked)
+        // but merge in the additional details from the API
+        const mergedInfo: MedicationInfo = {
+          name: medication.name, // Always use the clicked medication's name
+          brandName: medication.brandName || fullMedicationInfo.brandName,
+          genericName: medication.genericName || fullMedicationInfo.genericName,
+          dosages: fullMedicationInfo.dosages,
+          sideEffects: fullMedicationInfo.sideEffects,
+          warnings: fullMedicationInfo.warnings,
+          drugInteractions: fullMedicationInfo.drugInteractions,
+        };
+        setSelectedMedications([...selectedMedications, mergedInfo]);
+      } else {
+        // API call failed or returned error, use the search result data
+        setSelectedMedications([...selectedMedications, baseMedicationInfo]);
       }
     } catch (error) {
       console.error('Failed to fetch medication details:', error);
+      // On error, use the search result data (the exact medication clicked)
+      setSelectedMedications([...selectedMedications, baseMedicationInfo]);
     }
   }
   

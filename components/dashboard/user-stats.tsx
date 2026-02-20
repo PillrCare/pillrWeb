@@ -35,38 +35,38 @@ export default function UserStats({ patientStats }: { patientStats: PatientStats
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6">
-        <div className="space-y-2">
+        <div className="flex flex-col space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overall Adherence</p>
           <p className={`text-3xl font-bold ${getAdherenceColor(adherence)}`}>
             {adherence.toFixed(1)}%
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground min-h-[2.5rem]">
             {patientStats.on_time_count || 0} of {patientStats.total_events || 0} on time
           </p>
         </div>
 
-        <div className="space-y-2">
+        <div className="flex flex-col space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Past Week</p>
           <p className={`text-3xl font-bold ${getAdherenceColor(weeklyAdherence)}`}>
             {weeklyAdherence.toFixed(1)}%
           </p>
-          <p className="text-xs text-muted-foreground">Last 7 days</p>
+          <p className="text-xs text-muted-foreground min-h-[2.5rem]">Last 7 days</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="flex flex-col space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Past Month</p>
           <p className={`text-3xl font-bold ${getAdherenceColor(monthlyAdherence)}`}>
             {monthlyAdherence.toFixed(1)}%
           </p>
-          <p className="text-xs text-muted-foreground">Last 30 days</p>
+          <p className="text-xs text-muted-foreground min-h-[2.5rem]">Last 30 days</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="flex flex-col space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Missed Doses</p>
           <p className={`text-3xl font-bold ${(patientStats.missed_doses || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
             {patientStats.missed_doses || 0}
           </p>
-          <p className="text-xs text-muted-foreground">Total missed</p>
+          <p className="text-xs text-muted-foreground min-h-[2.5rem]">Total missed</p>
         </div>
       </div>
 
