@@ -15,6 +15,7 @@ import DeviceCommandsCard from "@/components/dashboard/device-commands-card";
 type DeviceLogRow = Tables<"device_log">;
 type ScheduleEvent = Tables<"weekly_events">;
 type PatientStatsRow = Tables<"patient_stats">;
+type DeviceMetricsRow = Tables<"device_metrics">;
 
 export default async function DashboardPatient() {
   const supabase = await createClient();
@@ -112,6 +113,25 @@ export default async function DashboardPatient() {
     }
   }
 
+  // Fetch device metrics from the view
+  let deviceMetrics: DeviceMetricsRow | null = null;
+  if (device?.device_id) {
+    const { data: metricsData, error: metricsError } = await supabase
+      .from('device_metrics')
+      .select('*')
+      .eq('device_id', device.device_id)
+      .maybeSingle();
+
+    // Log PHI access
+    await logSelectQuery(userId, 'device_metrics', { data: metricsData, error: metricsError }, { record_id: device.device_id });
+
+    if (metricsError) {
+      console.error('Failed to load device metrics:', metricsError);
+    } else if (metricsData) {
+      deviceMetrics = metricsData;
+    }
+  }
+
   // Fetch schedule regardless of device status - users should see their schedule
   let schedule: ScheduleEvent[] = [];
   const { data: scheduleData, error: scheduleError } = await supabase
@@ -179,7 +199,7 @@ export default async function DashboardPatient() {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <UserStats patientStats={patientStats} />
+              <UserStats patientStats={patientStats} deviceMetrics={deviceMetrics} />
             </div>
             <div>
               <TodaysSchedule schedule={schedule} deviceLog={deviceLog} />
