@@ -20,7 +20,6 @@ export default function TermsAndConditionsLayout({
             <div className="flex gap-5 items-center">
               <Link href={"/dashboard"} className="font-semibold">Dashboard</Link>
               <Link href={"/contact"} className="font-semibold">Contact Us</Link>
-              <Link href={"/privacy"} className="font-semibold">Privacy Policy</Link>
               {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
             </div>
           </div>
@@ -41,6 +40,8 @@ export default function TermsAndConditionsLayout({
             </a>
             {" 2025"}
           </p>
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          <Link href="/terms-and-conditions" className="hover:underline">Terms & Conditions</Link>
           <ThemeSwitcher />
         </footer>
       </div>

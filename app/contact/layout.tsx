@@ -42,6 +42,8 @@ export default function ProtectedLayout({
             </a>
             {"  2025"}
           </p>
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          <Link href="/terms-and-conditions" className="hover:underline">Terms & Conditions</Link>
           <ThemeSwitcher />
         </footer>
       </div>
