@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { Tables } from "@/lib/types";
-import { convertUtcDoseTimeToLocal } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ImageViewer } from "@/components/dashboard/image-viewer";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScheduleCalendar } from "@/components/schedule-calendar";
+import ScheduleEditor from "@/components/schedule-editor";
+import { X } from "lucide-react";
 
 type ScheduleEvent = Tables<"weekly_events">;
 
@@ -22,119 +25,127 @@ type ScheduleEventWithMedication = ScheduleEvent & {
   medications?: MedicationData[];
 };
 
-const DAYS = [
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-  { value: 7, label: "Sunday" },
-];
-
-// Get the date for a specific day of week in the current week
-function getDateForDayOfWeek(dayOfWeek: number): Date {
-  const today = new Date();
-  const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  const schemaCurrentDay = currentDay === 0 ? 7 : currentDay; // Convert to schema format (1=Mon, 7=Sun)
-  
-  // Calculate days difference
-  let daysDiff = dayOfWeek - schemaCurrentDay;
-  
-  // If the day is earlier in the week (e.g., today is Friday (5) and we want Monday (1))
-  // we need to go to next week's Monday
-  if (daysDiff < 0) {
-    daysDiff += 7;
-  }
-  
-  const targetDate = new Date(today);
-  targetDate.setDate(today.getDate() + daysDiff);
-  return targetDate;
-}
-
-// Format date as "Mon, Jan 15"
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric' 
-  });
+// Convert UTC time to local timezone for display
+function utcTimeToLocal(utcTime: string): string {
+  const [hours, minutes] = utcTime.split(':').map(Number);
+  const date = new Date();
+  date.setUTCHours(hours, minutes, 0, 0);
+  const localHours = date.getHours();
+  const localMinutes = date.getMinutes();
+  return `${String(localHours).padStart(2, '0')}:${String(localMinutes).padStart(2, '0')}`;
 }
 
 export default function Schedule({ schedule}: { schedule: ScheduleEventWithMedication[]}) {
     const router = useRouter();
+    const [showEditModal, setShowEditModal] = useState(false);
 
-    // Group events by day_of_week
-    const eventsByDay = DAYS.map(day => ({
-      ...day,
-      date: getDateForDayOfWeek(day.value),
-      events: schedule
-        .filter(event => event.day_of_week === day.value)
-        .sort((a, b) => a.dose_time.localeCompare(b.dose_time))
+    // Convert schedule events to calendar format (convert UTC times to local)
+    const calendarEvents = schedule.map(event => ({
+      id: event.id,
+      day_of_week: event.day_of_week,
+      dose_time: utcTimeToLocal(event.dose_time),
+      description: event.description,
+      image_url: event.image_url,
+      medicationData: event.medications || [],
     }));
 
-    return (
-        <div className="bg-card border rounded-xl shadow-sm">
-            <div className="flex items-center justify-between p-6 border-b">
-                <h3 className="text-lg font-semibold">Weekly Schedule</h3>
-                <Button variant="outline" size="sm" onClick={() => router.push("/auth/profile-setup/schedule")}>
-                    Edit Schedule
-                </Button>
-            </div>
+    function handleCloseModal() {
+      setShowEditModal(false);
+      // Refresh the page to show updated schedule
+      router.refresh();
+    }
 
-            <div className="p-6 space-y-4">
-                {eventsByDay.map((dayData) => (
-                    <div key={dayData.value} className="border rounded-lg p-4 bg-muted/30">
-                        <div className="font-semibold text-base mb-3 text-foreground">
-                            {dayData.label} - {formatDate(dayData.date)}
+    function handleCancelModal() {
+      setShowEditModal(false);
+    }
+
+    // Handle ESC key and body scroll
+    useEffect(() => {
+      if (!showEditModal) return;
+
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          handleCancelModal();
+        }
+      };
+
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        document.removeEventListener("keydown", handleEscape);
+        document.body.style.overflow = "unset";
+      };
+    }, [showEditModal]);
+
+    return (
+        <>
+            <Card className="rounded-xl shadow-sm">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <CardTitle>Weekly Schedule</CardTitle>
+                            <CardDescription>
+                                {schedule.length === 0 
+                                    ? "No events scheduled yet" 
+                                    : `${schedule.length} event${schedule.length !== 1 ? 's' : ''} scheduled`
+                                }
+                            </CardDescription>
                         </div>
-                        {dayData.events.length === 0 ? (
-                            <div className="text-muted-foreground text-sm">No events scheduled</div>
-                        ) : (
-                            <div className="space-y-2">
-                                {dayData.events.map((row) => {
-                                    const medications = row.medications && row.medications.length > 0 ? row.medications : [];
-                                    return (
-                                        <div key={row.id} className="border rounded-lg p-3 bg-background">
-                                            <div className="flex flex-col gap-3">
-                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                                                    <div className="font-medium min-w-[80px]">
-                                                        {convertUtcDoseTimeToLocal(row.dose_time)}
-                                                    </div>
-                                                    {medications.length > 0 && (
-                                                        <div className="font-semibold flex-1">
-                                                            {medications.map((med, idx) => {
-                                                                const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
-                                                                return (
-                                                                    <span key={`${med.id || med.name}-${idx}`}>
-                                                                        {idx > 0 && <span className="text-muted-foreground">, </span>}
-                                                                        <span>{displayName}</span>
-                                                                    </span>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                    {row.description && (
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {row.description}
-                                                        </div>
-                                                    )}
-                                                    {row.image_url && (
-                                                        <div className="flex-shrink-0">
-                                                            <ImageViewer imageUrl={row.image_url} alt="Event image" thumbnailSize="md" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
+                            Edit Schedule
+                        </Button>
                     </div>
-                ))}
-            </div>
-        </div>
+                </CardHeader>
+                <CardContent>
+                    {schedule.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p>No events scheduled. Click &quot;Edit Schedule&quot; to add events.</p>
+                        </div>
+                    ) : (
+                        <ScheduleCalendar 
+                            events={calendarEvents} 
+                            // Read-only in dashboard view - no onRemoveEvent handler
+                        />
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Edit Schedule Modal */}
+            {showEditModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+                    <div 
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+                        onClick={handleCancelModal} 
+                        aria-hidden 
+                    />
+
+                    <Card className="relative w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+                        <CardHeader className="relative flex-shrink-0 p-4 sm:p-6">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleCancelModal}
+                                aria-label="Close dialog"
+                                className="absolute top-3 right-3 sm:top-4 sm:right-4 h-8 w-8 sm:h-10 sm:w-10"
+                            >
+                                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </Button>
+                            <CardTitle className="pr-10 sm:pr-12 text-lg sm:text-xl">Edit Schedule</CardTitle>
+                            <CardDescription className="text-sm">Add or remove medication events from your weekly schedule</CardDescription>
+                        </CardHeader>
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                            <ScheduleEditor 
+                                which_user={undefined} 
+                                path="/dashboard/patient"
+                                onSave={handleCloseModal}
+                            />
+                        </div>
+                    </Card>
+                </div>
+            )}
+        </>
     );
 }
 

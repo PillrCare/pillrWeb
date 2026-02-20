@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Plus, Clock, Calendar, Image as ImageIcon } from "lucide-react";
-import { ImageViewer } from "@/components/dashboard/image-viewer";
+import { X, Plus, Clock, Calendar, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { ScheduleCalendar } from "@/components/schedule-calendar";
 
 type MedicationData = {
   id: string;
@@ -85,14 +85,14 @@ function localTimeToUTC(dayOfWeek: number, localTime: string): { day_of_week: nu
 }
 
 // Format 24-hour time to 12-hour with AM/PM
-function formatTimeDisplay(time24: string): string {
+export function formatTimeDisplay(time24: string): string {
   const [hours, minutes] = time24.split(':').map(Number);
   const period = hours >= 12 ? 'PM' : 'AM';
   const hours12 = hours % 12 || 12;
   return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
-export default function ScheduleEditor({ which_user, path = "/dashboard" }: { which_user?: string; path?: string }) {
+export default function ScheduleEditor({ which_user, path = "/dashboard", onSave }: { which_user?: string; path?: string; onSave?: () => void }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -107,6 +107,9 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ dayOfWeek: number; doseTime: string; description: string | null } | null>(null);
+  const [matchingEventsCount, setMatchingEventsCount] = useState(0);
   // `userId` is the target user whose schedule we're editing (could be the same).
   const [userId, setUserId] = useState<string | null>(null);
   
@@ -206,17 +209,42 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
       return;
     }
     
-    // When medication is selected, fetch full medication details from API
+    // When medication is selected, use the exact medication from search results
+    // and fetch additional details (side effects, interactions) if needed
     setMedicationSearchValue("");
     
+    // Start with the medication data from the search results (this is the exact one clicked)
+    const baseMedicationInfo: MedicationInfo = {
+      name: medication.name,
+      brandName: medication.brandName,
+      genericName: medication.genericName,
+    };
+    
     try {
+      // Try to fetch full details for side effects and interactions
+      // But always use the medication name/brand/generic from the search result
       const fullMedicationInfo = await searchMedication(medication.name);
       if (!('message' in fullMedicationInfo)) {
-        // Add to the array of selected medications
-        setSelectedMedications([...selectedMedications, fullMedicationInfo]);
+        // Use the search result's name/brand/generic (the exact one clicked)
+        // but merge in the additional details from the API
+        const mergedInfo: MedicationInfo = {
+          name: medication.name, // Always use the clicked medication's name
+          brandName: medication.brandName || fullMedicationInfo.brandName,
+          genericName: medication.genericName || fullMedicationInfo.genericName,
+          dosages: fullMedicationInfo.dosages,
+          sideEffects: fullMedicationInfo.sideEffects,
+          warnings: fullMedicationInfo.warnings,
+          drugInteractions: fullMedicationInfo.drugInteractions,
+        };
+        setSelectedMedications([...selectedMedications, mergedInfo]);
+      } else {
+        // API call failed or returned error, use the search result data
+        setSelectedMedications([...selectedMedications, baseMedicationInfo]);
       }
     } catch (error) {
       console.error('Failed to fetch medication details:', error);
+      // On error, use the search result data (the exact medication clicked)
+      setSelectedMedications([...selectedMedications, baseMedicationInfo]);
     }
   }
   
@@ -333,7 +361,7 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
     setEvents((s) => [...s, ...newEvents]);
     
-    // Reset form
+    // Reset form and close modal
     setNewTime("");
     setNewDesc(null);
     setNewImageFile(null);
@@ -342,21 +370,93 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     setSelectedMedications([]);
     setIsDaily(false);
     setSelectedDays([]);
+    setShowAddModal(false);
+  }
+
+  // Check if events match (same time, medications, and description)
+  function eventsMatch(event1: EventItem, event2: EventItem): boolean {
+    if (event1.dose_time !== event2.dose_time) return false;
+    if (event1.description !== event2.description) return false;
+    
+    // Compare medications
+    const meds1: (MedicationInfo | MedicationData)[] = event1.medications || event1.medicationData || [];
+    const meds2: (MedicationInfo | MedicationData)[] = event2.medications || event2.medicationData || [];
+    
+    if (meds1.length !== meds2.length) return false;
+    
+    // Compare medication names
+    const names1 = meds1.map(m => {
+      if ('brandName' in m || 'genericName' in m) {
+        return (m as MedicationInfo).name;
+      } else {
+        return (m as MedicationData).name;
+      }
+    }).sort();
+    
+    const names2 = meds2.map(m => {
+      if ('brandName' in m || 'genericName' in m) {
+        return (m as MedicationInfo).name;
+      } else {
+        return (m as MedicationData).name;
+      }
+    }).sort();
+    
+    return names1.every((name, idx) => name === names2[idx]);
   }
 
   function removeEvent(dayOfWeek: number, doseTime: string, description: string | null) {
-    setEvents((s) => {
-      // Find and remove the first matching event
-      const index = s.findIndex(e => 
+    // Find the event being deleted
+    const eventToDelete = events.find(e => 
+      e.day_of_week === dayOfWeek &&
+      e.dose_time === doseTime &&
+      e.description === description
+    );
+
+    if (!eventToDelete) return;
+
+    // Find all matching events (same time, medications, description)
+    const matchingEvents = events.filter(e => eventsMatch(e, eventToDelete));
+    
+    if (matchingEvents.length > 1) {
+      // Show confirmation dialog
+      setPendingDelete({ dayOfWeek, doseTime, description });
+      setMatchingEventsCount(matchingEvents.length);
+    } else {
+      // No duplicates, just delete the single event
+      performDelete(dayOfWeek, doseTime, description, false);
+    }
+  }
+
+  function performDelete(dayOfWeek: number, doseTime: string, description: string | null, deleteAll: boolean) {
+    if (deleteAll) {
+      // Find the event being deleted to match against
+      const eventToDelete = events.find(e => 
         e.day_of_week === dayOfWeek &&
         e.dose_time === doseTime &&
         e.description === description
       );
-      if (index !== -1) {
-        return s.filter((_, i) => i !== index);
+
+      if (eventToDelete) {
+        // Delete all matching events
+        setEvents((s) => s.filter(e => !eventsMatch(e, eventToDelete)));
       }
-      return s;
-    });
+    } else {
+      // Delete only the specific event
+      setEvents((s) => {
+        const index = s.findIndex(e => 
+          e.day_of_week === dayOfWeek &&
+          e.dose_time === doseTime &&
+          e.description === description
+        );
+        if (index !== -1) {
+          return s.filter((_, i) => i !== index);
+        }
+        return s;
+      });
+    }
+    
+    setPendingDelete(null);
+    setMatchingEventsCount(0);
   }
 
   async function saveAndContinue() {
@@ -384,7 +484,11 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
 
       if (payload.length === 0) {
         setSaving(false);
-        router.push(path);
+        if (onSave) {
+          onSave();
+        } else {
+          router.push(path);
+        }
         return;
       }
 
@@ -486,7 +590,12 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     } finally {
       setSaving(false);
     }
-    router.push(path);
+    
+    if (onSave) {
+      onSave();
+    } else {
+      router.push(path);
+    }
 
   }
 
@@ -498,237 +607,40 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
     );
   }
 
-  // Group events by day for display
-  const eventsByDay = DAYS.map(day => ({
-    ...day,
-    events: events
-      .filter(ev => ev.day_of_week === day.value)
-      .sort((a, b) => a.dose_time.localeCompare(b.dose_time))
-  }));
+  function closeAddModal() {
+    setShowAddModal(false);
+    // Reset form when closing
+    setNewTime("");
+    setNewDesc(null);
+    setNewImageFile(null);
+    setNewImagePreview(null);
+    setMedicationSearchValue("");
+    setSelectedMedications([]);
+    setIsDaily(false);
+    setSelectedDays([]);
+  }
 
   return (
-    <div className="flex-1 w-full flex flex-col gap-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Set Your Medication Schedule</h1>
-        <p className="text-muted-foreground">Add medications and set times for each day of the week</p>
+    <div className="flex-1 w-full flex flex-col gap-4 sm:gap-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1 sm:space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold">Set Your Medication Schedule</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Add medications and set times for each day of the week</p>
+        </div>
+        <Button
+          onClick={() => setShowAddModal(true)}
+          size="lg"
+          className="w-full sm:w-auto flex items-center gap-2"
+        >
+          <Plus className="h-5 w-5" />
+          Add Event
+        </Button>
       </div>
 
-      {/* Add Event Form */}
+      {/* Calendar View */}
       <Card className="rounded-xl shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Add New Event
-          </CardTitle>
-          <CardDescription>Create a new medication schedule entry</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-6">
-            {/* Time Input */}
-            <div className="space-y-2">
-              <Label htmlFor="time" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Time
-              </Label>
-              <Input
-                id="time"
-                type="time"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                required
-                className="w-full"
-              />
-            </div>
-
-            {/* Medication Search */}
-            <div className="space-y-2">
-              <Label htmlFor="medication">
-                Medications (optional, up to {MAX_MEDICATIONS_PER_EVENT})
-                {selectedMedications.length > 0 && (
-                  <span className="text-muted-foreground font-normal ml-2">
-                    ({selectedMedications.length}/{MAX_MEDICATIONS_PER_EVENT})
-                  </span>
-                )}
-              </Label>
-              {selectedMedications.length < MAX_MEDICATIONS_PER_EVENT ? (
-                <MedicationSearch
-                  value={medicationSearchValue}
-                  onChange={handleMedicationSearchChange}
-                  onSelect={handleMedicationSelect}
-                  placeholder="Search for medication..."
-                  className="w-full"
-                />
-              ) : (
-                <div className="text-sm text-muted-foreground p-2 border rounded-lg bg-muted/30">
-                  Maximum of {MAX_MEDICATIONS_PER_EVENT} medications per event reached
-                </div>
-              )}
-              
-              {/* Display selected medications */}
-              {selectedMedications.length > 0 && (
-                <div className="space-y-2 mt-2">
-                  {selectedMedications.map((med, index) => (
-                    <div
-                      key={`${med.name}-${index}`}
-                      className="flex items-center justify-between p-3 bg-muted/50 border rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold truncate">{med.name}</div>
-                        {med.brandName && med.brandName !== med.name && (
-                          <div className="text-sm text-muted-foreground truncate">
-                            Brand: {med.brandName}
-                          </div>
-                        )}
-                        {med.genericName && med.genericName !== med.name && (
-                          <div className="text-sm text-muted-foreground truncate">
-                            Generic: {med.genericName}
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSelectedMedication(index)}
-                        className="ml-2 flex-shrink-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Notes/Description */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
-              <Input
-                id="notes"
-                type="text"
-                value={newDesc ?? ""}
-                onChange={(e) => setNewDesc(e.target.value)}
-                placeholder="Additional notes (e.g., With food, morning)"
-                className="w-full"
-              />
-            </div>
-
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label htmlFor="image" className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Image (optional)
-              </Label>
-              {!newImagePreview ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    className="w-full"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="relative w-full max-w-md">
-                    <img
-                      src={newImagePreview}
-                      alt="Preview"
-                      className="w-full h-auto rounded-lg border-2 border-input object-cover max-h-64"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={removeSelectedImage}
-                      className="absolute top-2 right-2"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {newImageFile?.name} ({(newImageFile?.size ? (newImageFile.size / 1024).toFixed(1) : 0)} KB)
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Day Selection */}
-            <div className="space-y-3">
-              <Label className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Apply to:
-              </Label>
-              <div className="flex flex-col gap-3">
-                <Button
-                  type="button"
-                  variant={isDaily ? "default" : "outline"}
-                  onClick={handleDailyToggle}
-                  className="w-full justify-start h-auto p-4"
-                >
-                  <div className={`
-                    w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0 mr-3
-                    ${isDaily ? 'bg-primary-foreground border-primary-foreground' : 'border-foreground/50'}
-                  `}>
-                    {isDaily && (
-                      <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="font-medium">Daily (all days)</span>
-                </Button>
-                
-                {!isDaily && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                    {DAYS.map((day) => {
-                      const isSelected = selectedDays.includes(day.value);
-                      return (
-                        <Button
-                          key={day.value}
-                          type="button"
-                          variant={isSelected ? "default" : "outline"}
-                          onClick={() => handleDayToggle(day.value)}
-                          className="h-auto p-3 flex flex-col items-center gap-2"
-                        >
-                          <div className={`
-                            w-5 h-5 border-2 rounded flex items-center justify-center
-                            ${isSelected ? 'bg-primary-foreground border-primary-foreground' : 'border-foreground/50'}
-                          `}>
-                            {isSelected && (
-                              <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-sm font-medium">{day.label.slice(0, 3)}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Add Button */}
-            <Button
-              onClick={addEvent}
-              disabled={!newTime || (!isDaily && selectedDays.length === 0)}
-              size="lg"
-              className="w-full"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Event
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Current Schedule */}
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader>
-          <CardTitle>Current Schedule</CardTitle>
+          <CardTitle>Weekly Schedule</CardTitle>
           <CardDescription>
             {events.length === 0 
               ? "No events scheduled yet" 
@@ -740,86 +652,10 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
           {events.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No events scheduled. Add an event above to get started.</p>
+              <p>No events scheduled. Click &quot;Add Event&quot; to get started.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {eventsByDay.map((dayData) => (
-                dayData.events.length > 0 && (
-                  <div key={dayData.value} className="border rounded-lg p-4 bg-muted/30">
-                    <div className="font-semibold text-lg mb-3 text-foreground">{dayData.label}</div>
-                    <div className="space-y-2">
-                      {dayData.events.map((ev, idx) => {
-                        // Get medications from either medicationData (existing) or medications (newly added)
-                        const medications = ev.medicationData && ev.medicationData.length > 0
-                          ? ev.medicationData
-                          : (ev.medications && ev.medications.length > 0
-                              ? ev.medications.map(m => ({
-                                  id: '',
-                                  schedule_id: '',
-                                  name: m.name,
-                                  brand_name: m.brandName || null,
-                                  generic_name: m.genericName || null,
-                                  adverse_reactions: null,
-                                  drug_interaction: null,
-                                }))
-                              : []);
-                        
-                        return (
-                          <div 
-                            key={`${dayData.value}-${idx}-${ev.dose_time}`} 
-                            className="flex items-center justify-between p-4 bg-background border rounded-lg hover:shadow-sm transition-shadow"
-                          >
-                            <div className="flex items-start gap-4 flex-wrap flex-1 min-w-0">
-                              <div className="font-semibold text-lg min-w-[100px]">
-                                {formatTimeDisplay(ev.dose_time)}
-                              </div>
-                              {medications.length > 0 && (
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-semibold">
-                                    {medications.map((med, medIdx) => {
-                                      const displayName = med.brand_name || med.name || med.generic_name || 'Unknown';
-                                      return (
-                                        <span key={`${med.name}-${medIdx}`}>
-                                          {medIdx > 0 && <span className="text-muted-foreground">, </span>}
-                                          <span>{displayName}</span>
-                                        </span>
-                                      );
-                                    })}
-                                  </div>
-                                  {medications.length > 1 && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      {medications.length} medication{medications.length !== 1 ? 's' : ''}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              {ev.description && (
-                                <div className="text-sm text-muted-foreground">{ev.description}</div>
-                              )}
-                              {ev.image_url && (
-                                <div className="flex-shrink-0">
-                                  <ImageViewer imageUrl={ev.image_url} alt="Event image" thumbnailSize="sm" />
-                                </div>
-                              )}
-                            </div>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => removeEvent(ev.day_of_week, ev.dose_time, ev.description ?? null)}
-                              className="ml-4 flex-shrink-0"
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Remove
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )
-              ))}
-            </div>
+            <ScheduleCalendar events={events} onRemoveEvent={removeEvent} />
           )}
         </CardContent>
       </Card>
@@ -830,19 +666,306 @@ export default function ScheduleEditor({ which_user, path = "/dashboard" }: { wh
           size="lg" 
           onClick={saveAndContinue} 
           disabled={saving}
-          className="flex-1"
+          className="w-full sm:flex-1"
         >
-          {saving ? "Saving…" : "Save and Continue"}
+          {saving ? "Saving…" : onSave ? "Save Changes" : "Save and Continue"}
         </Button>
-        <Button 
-          variant="outline" 
-          size="lg" 
-          onClick={() => router.push(path)}
-          className="flex-1"
-        >
-          Skip for now
-        </Button>
+        {!onSave && (
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => router.push(path)}
+            className="w-full sm:flex-1"
+          >
+            Skip for now
+          </Button>
+        )}
       </div>
+
+      {/* Add Event Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={closeAddModal} 
+            aria-hidden 
+          />
+
+          <Card className="relative w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <CardHeader className="relative p-4 sm:p-6">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={closeAddModal}
+                aria-label="Close dialog"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 h-8 w-8 sm:h-10 sm:w-10"
+              >
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <CardTitle className="flex items-center gap-2 pr-10 sm:pr-12 text-lg sm:text-xl">
+                <Plus className="h-5 w-5" />
+                Add New Event
+              </CardTitle>
+              <CardDescription className="text-sm">Create a new medication schedule entry</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col gap-6">
+                {/* Time Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="time" className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Time
+                  </Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={newTime}
+                    onChange={(e) => setNewTime(e.target.value)}
+                    required
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Medication Search */}
+                <div className="space-y-2">
+                  <Label htmlFor="medication">
+                    Medications (optional, up to {MAX_MEDICATIONS_PER_EVENT})
+                    {selectedMedications.length > 0 && (
+                      <span className="text-muted-foreground font-normal ml-2">
+                        ({selectedMedications.length}/{MAX_MEDICATIONS_PER_EVENT})
+                      </span>
+                    )}
+                  </Label>
+                  {selectedMedications.length < MAX_MEDICATIONS_PER_EVENT ? (
+                    <MedicationSearch
+                      value={medicationSearchValue}
+                      onChange={handleMedicationSearchChange}
+                      onSelect={handleMedicationSelect}
+                      placeholder="Search for medication..."
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="text-sm text-muted-foreground p-2 border rounded-lg bg-muted/30">
+                      Maximum of {MAX_MEDICATIONS_PER_EVENT} medications per event reached
+                    </div>
+                  )}
+                  
+                  {/* Display selected medications */}
+                  {selectedMedications.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {selectedMedications.map((med, index) => (
+                        <div
+                          key={`${med.name}-${index}`}
+                          className="flex items-center justify-between p-3 bg-muted/50 border rounded-lg"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold truncate">{med.name}</div>
+                            {med.brandName && med.brandName !== med.name && (
+                              <div className="text-sm text-muted-foreground truncate">
+                                Brand: {med.brandName}
+                              </div>
+                            )}
+                            {med.genericName && med.genericName !== med.name && (
+                              <div className="text-sm text-muted-foreground truncate">
+                                Generic: {med.genericName}
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSelectedMedication(index)}
+                            className="ml-2 flex-shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes/Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes (optional)</Label>
+                  <Input
+                    id="notes"
+                    type="text"
+                    value={newDesc ?? ""}
+                    onChange={(e) => setNewDesc(e.target.value)}
+                    placeholder="Additional notes (e.g., With food, morning)"
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Image Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="image" className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Image (optional)
+                  </Label>
+                  {!newImagePreview ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="w-full"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative w-full max-w-md">
+                        <img
+                          src={newImagePreview}
+                          alt="Preview"
+                          className="w-full h-auto rounded-lg border-2 border-input object-cover max-h-64"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={removeSelectedImage}
+                          className="absolute top-2 right-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {newImageFile?.name} ({(newImageFile?.size ? (newImageFile.size / 1024).toFixed(1) : 0)} KB)
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Day Selection */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Apply to:
+                  </Label>
+                  <div className="flex flex-col gap-3">
+                    <Button
+                      type="button"
+                      variant={isDaily ? "default" : "outline"}
+                      onClick={handleDailyToggle}
+                      className="w-full justify-start h-auto p-4"
+                    >
+                      <div className={`
+                        w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0 mr-3
+                        ${isDaily ? 'bg-primary-foreground border-primary-foreground' : 'border-foreground/50'}
+                      `}>
+                        {isDaily && (
+                          <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="font-medium">Daily (all days)</span>
+                    </Button>
+                    
+                    {!isDaily && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3">
+                        {DAYS.map((day) => {
+                          const isSelected = selectedDays.includes(day.value);
+                          return (
+                            <Button
+                              key={day.value}
+                              type="button"
+                              variant={isSelected ? "default" : "outline"}
+                              onClick={() => handleDayToggle(day.value)}
+                              className="h-auto p-3 sm:p-3 min-h-[60px] sm:min-h-0 flex flex-col items-center gap-2 touch-manipulation"
+                            >
+                              <div className={`
+                                w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0
+                                ${isSelected ? 'bg-primary-foreground border-primary-foreground' : 'border-foreground/50'}
+                              `}>
+                                {isSelected && (
+                                  <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className="text-xs sm:text-sm font-medium">{day.label.slice(0, 3)}</span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add Button */}
+                <Button
+                  onClick={addEvent}
+                  disabled={!newTime || (!isDaily && selectedDays.length === 0)}
+                  size="lg"
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={() => setPendingDelete(null)} 
+            aria-hidden 
+          />
+
+          <Card className="relative w-full max-w-md">
+            <CardHeader className="relative">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <CardTitle className="text-xl">Delete Event{matchingEventsCount > 1 ? 's' : ''}?</CardTitle>
+              </div>
+              <CardDescription>
+                {matchingEventsCount > 1 
+                  ? `This event appears ${matchingEventsCount} times in your schedule (same time, medications, and notes). Would you like to delete all occurrences?`
+                  : 'Are you sure you want to delete this event?'
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {matchingEventsCount > 1 && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => performDelete(pendingDelete.dayOfWeek, pendingDelete.doseTime, pendingDelete.description, true)}
+                    className="flex-1"
+                  >
+                    Delete All ({matchingEventsCount})
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  onClick={() => performDelete(pendingDelete.dayOfWeek, pendingDelete.doseTime, pendingDelete.description, false)}
+                  className="flex-1"
+                >
+                  Delete This One Only
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPendingDelete(null)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
