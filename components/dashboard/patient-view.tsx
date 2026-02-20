@@ -103,7 +103,8 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                         .limit(10);
 
                     const missedFormatted = (missedEvents ?? []).map((event) => {
-                        const we = event.weekly_events as { description: string | null } | null;
+                        const weRaw = event.weekly_events as unknown;
+                        const we = (Array.isArray(weRaw) ? weRaw[0] : weRaw) as { description: string | null } | null;
                         return {
                             medication: we?.description ?? 'Medication',
                             time: `${event.expected_date} at ${event.expected_time_utc.slice(0, 5)}`,
