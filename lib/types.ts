@@ -584,6 +584,21 @@ export type Database = {
       }
     }
     Views: {
+      device_metrics: {
+        Row: {
+          device_id: string | null
+          total_dispenses: number | null
+          total_denials: number | null
+          total_enrollments: number | null
+          total_emergency_unlocks: number | null
+          total_errors: number | null
+          last_dispense_time: string | null
+          avg_dispense_weight: number | null
+          total_schedule_denials: number | null
+          total_unknown_fingerprints: number | null
+        }
+        Relationships: []
+      }
       patient_stats: {
         Row: {
           adherence_past_month_pct: number | null
