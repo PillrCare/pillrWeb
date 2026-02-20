@@ -92,23 +92,63 @@ export default function PatientView({ initialPatients, showRoleFilters = false }
                 if (mounted) setPatient(patientWithDevice ?? null);
 
 
-                // try to load missed doses
+                // Load missed doses from scheduled_dose_events
                 try {
-                    const { data: missed } = await supabase.from('missed_doses').select('*').eq('user_id', openPatientId).order('created_at', { ascending: false }).limit(10);
-                    if (mounted) setMissedDoses(missed ?? []);
+                    const { data: missedEvents } = await supabase
+                        .from('scheduled_dose_events')
+                        .select('expected_date, expected_time_utc, weekly_events(description)')
+                        .eq('user_id', openPatientId)
+                        .eq('status', 'missed')
+                        .order('expected_date', { ascending: false })
+                        .limit(10);
+
+                    const missedFormatted = (missedEvents ?? []).map((event) => {
+                        const we = event.weekly_events as { description: string | null } | null;
+                        return {
+                            medication: we?.description ?? 'Medication',
+                            time: `${event.expected_date} at ${event.expected_time_utc.slice(0, 5)}`,
+                        };
+                    });
+                    if (mounted) setMissedDoses(missedFormatted);
                 } catch (e) {
-                    console.warn('missed_doses table not available', e);
+                    console.warn('Could not load missed doses', e);
                     if (mounted) setMissedDoses([]);
                 }
 
-                // try to load adherence trend
+                // Calculate adherence trend from scheduled_dose_events (last 7 days)
                 try {
-                    const { data: trend } = await supabase.from('adherence').select('date, rate').eq('user_id', openPatientId).order('date', { ascending: true }).limit(7);
-                    if (mounted && trend && trend.length > 0) setAdherenceTrend(trend);
-                    else if (mounted) setAdherenceTrend([{ date: new Date().toISOString().slice(0, 10), rate: profile?.adherence_rate ?? 0 }]);
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    const startDate = sevenDaysAgo.toISOString().slice(0, 10);
+
+                    const { data: doseEvents } = await supabase
+                        .from('scheduled_dose_events')
+                        .select('expected_date, status')
+                        .eq('user_id', openPatientId)
+                        .gte('expected_date', startDate)
+                        .order('expected_date', { ascending: true });
+
+                    if (doseEvents && doseEvents.length > 0) {
+                        const byDate: Record<string, { total: number; taken: number }> = {};
+                        for (const event of doseEvents) {
+                            const d = event.expected_date;
+                            if (!byDate[d]) byDate[d] = { total: 0, taken: 0 };
+                            byDate[d].total++;
+                            if (event.status === 'taken_on_time' || event.status === 'taken_late') {
+                                byDate[d].taken++;
+                            }
+                        }
+                        const trend = Object.entries(byDate).map(([date, { total, taken }]) => ({
+                            date,
+                            rate: total > 0 ? Math.round((taken / total) * 100) : 0,
+                        }));
+                        if (mounted) setAdherenceTrend(trend);
+                    } else {
+                        if (mounted) setAdherenceTrend([]);
+                    }
                 } catch (e) {
-                    console.warn('adherence table not available', e);
-                    if (mounted) setAdherenceTrend([{ date: new Date().toISOString().slice(0, 10), rate: profile?.adherence_rate ?? 0 }]);
+                    console.warn('Could not load adherence trend', e);
+                    if (mounted) setAdherenceTrend([]);
                 }
 
                 // Load device logs using the device we already fetched

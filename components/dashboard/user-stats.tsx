@@ -40,6 +40,7 @@ export default function UserStats({
   const scheduleDenials = deviceMetrics?.total_schedule_denials ?? 0;
   const lastDispenseTime = deviceMetrics?.last_dispense_time ?? null;
   const avgDispenseWeight = deviceMetrics?.avg_dispense_weight ?? null;
+  const totalErrors = deviceMetrics?.total_errors ?? 0;
 
   const formatTimestamp = (ts: string) => {
     const d = new Date(ts);
