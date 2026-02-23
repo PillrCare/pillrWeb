@@ -3,17 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { StatCard } from "@/components/dashboard/admin/stat-card";
-import { SimpleBarChart } from "@/components/dashboard/admin/bar-chart";
+import { StackedDosesChart, MissedDosesByDayChart } from "@/components/dashboard/admin/bar-chart";
 import { SimplePieChart } from "@/components/dashboard/admin/pie-chart";
 import { RecentActivity } from "@/components/dashboard/admin/recent-activity";
-import { PatientSearch } from "@/components/dashboard/admin/patient-search";
-import PatientInfo from "@/components/dashboard/patient-info";
-import Sparkline from "@/components/dashboard/sparkline";
-import MissedDosesList from "@/components/dashboard/missed-doses-list";
-import DeviceLog from "@/components/dashboard/device-log";
-import ScheduleEditor from "@/components/schedule-editor";
-import { redirect } from "next/navigation";
-import { createClient as createServerClient } from "@/lib/supabase/server";
 import PatientView from "@/components/dashboard/patient-view";
 import type { Tables } from "@/lib/types";
 
@@ -22,11 +14,9 @@ type PatientStatsRow = Tables<"patient_stats">;
 
 export default function AdminDashboard() {
   const supabase = useMemo(() => createClient(), []);
-  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [agencyId, setAgencyId] = useState<string | null>(null);
-  const [activeCaregivers, setActiveCaregivers] = useState<any[] | null>(null);
-  const [patients, setPatients] = useState<any[] | null>(null);
+  const [activeCaregivers, setActiveCaregivers] = useState<Profile[] | null>(null);
+  const [patients, setPatients] = useState<Profile[] | null>(null);
   const [agencyProfiles, setAgencyProfiles] = useState<Profile[] | null>(null);
   const [patientStats, setPatientStats] = useState<PatientStatsRow[] | null>(null);
   const [doseEvents, setDoseEvents] = useState<{ expected_date: string; status: string }[] | null>(null);
@@ -66,8 +56,7 @@ export default function AdminDashboard() {
         }
 
         if (mounted) {
-          setUserProfile(profile);
-          setAgencyId(profile?.agency_id);
+          // profile is still used for subsequent queries; no need to store separately in state
         }
 
         // Fetch active caregivers
@@ -95,16 +84,18 @@ export default function AdminDashboard() {
           .from("patient_stats")
           .select("*");
 
-        // Fetch real per-day dose events for the past 7 days
+        // Fetch real per-day dose events for the past 7 days (filter by expected_date like patient-view)
         const patientIds = patientList?.map(p => p.id) ?? [];
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const startDate = sevenDaysAgo.toISOString().slice(0, 10);
         const { data: doseData } = patientIds.length > 0
           ? await supabase
               .from("scheduled_dose_events")
               .select("expected_date, status")
               .in("user_id", patientIds)
-              .gte("expected_timestamp_utc", sevenDaysAgo.toISOString())
+              .gte("expected_date", startDate)
+              .order("expected_date", { ascending: true })
           : { data: [] };
 
         // Fetch recent device log entries using event_type (not deprecated boolean fields)
@@ -171,23 +162,72 @@ export default function AdminDashboard() {
   const avgAdherence = patientsWithData > 0 ? Math.round(totalAdherence / patientsWithData) : 0;
   const avgWeeklyAdherence = weeklyAdherenceCount > 0 ? Math.round(weeklyAdherenceSum / weeklyAdherenceCount) : avgAdherence;
 
-  // Calculate real per-day weekly adherence from scheduled_dose_events
+  // Build per-day dose counts from scheduled_dose_events (last 7 days)
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const weeklyData = [];
+  type DayCounts = { label: string; dateStr: string; taken: number; missed: number; total: number; adherencePct: number; hasEvents: boolean };
+  const dayCounts: DayCounts[] = [];
 
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dayName = days[date.getDay()];
-    // Format as YYYY-MM-DD to match expected_date column
     const dateStr = date.toISOString().slice(0, 10);
 
     const dayEvents = doseEvents?.filter(e => e.expected_date === dateStr) ?? [];
     const total = dayEvents.length;
     const taken = dayEvents.filter(e => e.status === "taken_on_time" || e.status === "taken_late").length;
-    const value = total > 0 ? Math.round((taken / total) * 100) : 0;
-    weeklyData.push({ label: dayName, value });
+    const missed = dayEvents.filter(e => e.status === "missed").length;
+    const adherencePct = total > 0 ? Math.round((taken / total) * 100) : 0;
+
+    dayCounts.push({
+      label: dayName,
+      dateStr,
+      taken,
+      missed,
+      total,
+      adherencePct,
+      hasEvents: total > 0,
+    });
   }
+
+  // Detect multi-day gaps: >= 2 consecutive days with scheduled doses and adherence <= 60%
+  const LOW_ADHERENCE_THRESHOLD = 60;
+  const MIN_GAP_STREAK_DAYS = 2;
+  const gapDayIndexes = new Set<number>();
+  let streakStart = -1;
+  for (let i = 0; i < dayCounts.length; i++) {
+    const d = dayCounts[i];
+    const isLow = d.hasEvents && d.adherencePct <= LOW_ADHERENCE_THRESHOLD;
+    if (isLow) {
+      if (streakStart === -1) streakStart = i;
+    } else {
+      if (streakStart !== -1 && i - streakStart >= MIN_GAP_STREAK_DAYS) {
+        for (let j = streakStart; j < i; j++) gapDayIndexes.add(j);
+      }
+      streakStart = -1;
+    }
+  }
+  if (streakStart !== -1 && dayCounts.length - streakStart >= MIN_GAP_STREAK_DAYS) {
+    for (let j = streakStart; j < dayCounts.length; j++) gapDayIndexes.add(j);
+  }
+
+  const gapDays = gapDayIndexes.size;
+
+  // Data for stacked chart (taken vs missed by day)
+  const dosesByDayData = dayCounts.map((d) => ({
+    label: d.label,
+    dateStr: d.dateStr,
+    taken: d.taken,
+    missed: d.missed,
+  }));
+
+  // Data for missed-doses-by-day chart (adherence trend: how many missed per day)
+  const missedByDayData = dayCounts.map((d, i) => ({
+    label: d.label,
+    dateStr: d.dateStr,
+    missed: d.missed,
+    isGap: gapDayIndexes.has(i),
+  }));
 
   // Calculate adherence distribution from actual patient data
   const distribution = {
@@ -259,6 +299,12 @@ export default function AdminDashboard() {
         <StatCard title="Active Caregivers" value={activeCaregivers?.length || 0} subtitle="All active" />
         <StatCard title="Avg Adherence" value={`${avgAdherence}%`} subtitle={patientsWithData > 0 ? `Based on ${patientsWithData} patients` : "No data yet"} subtitleClassName={avgAdherence >= 85 ? "text-green-600" : "text-amber-600"} />
         <StatCard title="Total Missed Doses" value={totalMissedDoses} subtitle={totalMissedDoses > 0 ? "Across all patients" : "All on track"} subtitleClassName={totalMissedDoses > 5 ? "text-red-600" : totalMissedDoses > 0 ? "text-amber-600" : "text-green-600"} />
+        <StatCard
+          title="Gap Days (Last 7d)"
+          value={gapDays}
+          subtitle={gapDays > 0 ? "Consecutive low-adherence days detected" : "No multi-day gaps"}
+          subtitleClassName={gapDays > 0 ? "text-red-600" : "text-green-600"}
+        />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard title="Avg Weekly Adherence" value={`${avgWeeklyAdherence}%`} subtitle="Past 7 days across patients" subtitleClassName={avgWeeklyAdherence >= 85 ? "text-green-600" : "text-amber-600"} />
@@ -267,7 +313,10 @@ export default function AdminDashboard() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SimpleBarChart title="Weekly Adherence Overview" data={weeklyData} />
+        <StackedDosesChart title="Weekly doses: taken vs missed" data={dosesByDayData} />
+        <MissedDosesByDayChart title="Missed doses per day" data={missedByDayData} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SimplePieChart title="Adherence Distribution" slices={slices} />
       </div>
 

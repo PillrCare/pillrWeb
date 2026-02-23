@@ -15,12 +15,15 @@ export default function MissedDosesList({ missed = [] }: { missed?: MissedDose[]
       <h4 className="font-semibold mb-2">Recent Missed Doses</h4>
       <div className="space-y-2">
         {missed.map((dose, idx) => (
-          <div key={idx} className="flex items-center justify-between p-3 bg-red-50 rounded border border-red-200">
+          <div
+            key={idx}
+            className="flex items-center justify-between p-3 rounded border bg-destructive/10 border-destructive/30 dark:bg-destructive/20 dark:border-destructive/50"
+          >
             <div>
               <div className="font-medium">{dose.medication ?? dose.name}</div>
               <div className="text-sm text-muted-foreground">{dose.time}</div>
             </div>
-            <div className="text-sm">{dose.reason ?? 'Not verified'}</div>
+            <div className="text-sm opacity-90">{dose.reason ?? "Not verified"}</div>
           </div>
         ))}
       </div>
