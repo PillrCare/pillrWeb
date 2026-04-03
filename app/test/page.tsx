@@ -48,6 +48,7 @@ async function runVouchFlow(txContext: Record<string, unknown>): Promise<VouchRe
   // Step 1 — create challenge
   const challengeRes = await fetch(`${VOUCH_BASE_URL}/api/vouch/challenge`, {
     method: "POST",
+    credentials: 'include',
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${VOUCH_API_KEY}`,
@@ -114,6 +115,7 @@ async function runVouchFlow(txContext: Record<string, unknown>): Promise<VouchRe
     `${VOUCH_BASE_URL}/api/vouch/verify/${challenge_id}`,
     {
       method: "POST",
+      credentials: 'include',
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${VOUCH_API_KEY}`,
