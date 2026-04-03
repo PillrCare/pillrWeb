@@ -14,8 +14,8 @@
 import { useState } from "react";
 
 const VOUCH_BASE_URL =
-  process.env.NEXT_PUBLIC_VOUCH_BASE_URL ?? "https://app.vouchapi.com";
-const VOUCH_API_KEY = process.env.NEXT_PUBLIC_VOUCH_API_KEY ?? "";
+  process.env.NEXT_PUBLIC_VOUCH_BASE_URL ?? "https://vouchsign.vercel.app";
+const VOUCH_API_KEY = process.env.NEXT_PUBLIC_VOUCH_API_KEY ?? "vouch_sk_96dae12b03b89ae1def8821fda168b7dea0d585d4143234295ffe4d02b265292";
 
 // ── base64url helpers ──────────────────────────────────────────────────────
 
