@@ -310,6 +310,10 @@ export default function AdminDashboard() {
         <StatCard title="Avg Weekly Adherence" value={`${avgWeeklyAdherence}%`} subtitle="Past 7 days across patients" subtitleClassName={avgWeeklyAdherence >= 85 ? "text-green-600" : "text-amber-600"} />
         <StatCard title="Emergency Accesses" value={totalEmergencyAccesses} subtitle={totalEmergencyAccesses > 0 ? "Across all patients" : "None recorded"} subtitleClassName={totalEmergencyAccesses > 0 ? "text-amber-600" : "text-green-600"} />
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <StatCard title="Avg Weekly Adherence" value={`${avgWeeklyAdherence}%`} subtitle="Past 7 days across patients" subtitleClassName={avgWeeklyAdherence >= 85 ? "text-green-600" : "text-amber-600"} />
+        <StatCard title="Emergency Accesses" value={totalEmergencyAccesses} subtitle={totalEmergencyAccesses > 0 ? "Across all patients" : "None recorded"} subtitleClassName={totalEmergencyAccesses > 0 ? "text-amber-600" : "text-green-600"} />
+      </div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
